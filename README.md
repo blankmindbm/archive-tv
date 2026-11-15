@@ -19,5 +19,5 @@ The app is a WebView wrapper around the same `index.html`, bundled as `app/src/m
 
 Build it with GitHub Actions, no Android Studio needed. See `GITHUB_BUILD.md` for the exact steps. The workflow builds a debug APK named `archive-tv-debug-apk`.
 
-Package: `com.jeremy.archivetv`, version 1.0 (versionCode 1).
+Package: `com.archivetv.app`, version 1.1 (versionCode 2).
 Build: Gradle 8.7, JDK 17 Temurin, Android platform 34, build-tools 34.0.0.
