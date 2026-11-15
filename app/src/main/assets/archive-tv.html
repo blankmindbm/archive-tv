@@ -1,0 +1,1170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<link rel="icon" href="data:," />
+<title>Archive TV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#f3f3f0; --panel:#ffffff; --panel2:#ececea; --ink:#101216; --muted:#5b6068;
+    --line:#dededa; --accent:#c2410c; --accent-ink:#ffffff; --live:#dc2626;
+    --chip:#ffffff; --player:#000000; --shadow:0 10px 30px rgba(16,18,22,.10);
+    --radius:8px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0a0b0e; --panel:#121419; --panel2:#171a20; --ink:#f2f3f5; --muted:#9ba1ab;
+      --line:#23262e; --accent:#ffb020; --accent-ink:#14100a; --live:#ff453a;
+      --chip:#171a20; --shadow:0 12px 34px rgba(0,0,0,.45);
+    }
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif; -webkit-font-smoothing:antialiased; }
+  button,[role="button"],select,summary,input:not([type="checkbox"],[type="radio"]){ min-height:2.25rem; }
+  button{ font-family:inherit; cursor:pointer; }
+  a{ color:inherit; }
+  .mono{ font-family:"IBM Plex Mono",ui-monospace,monospace; }
+  .wrap{ max-width:1440px; margin:0 auto; padding:0 20px 64px; }
+  #watch, section.block{ scroll-margin-top:64px; }
+
+  /* ---------- top bar ---------- */
+  .topbar{ position:sticky; top:0; z-index:40; background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
+  .topbar-in{ max-width:1440px; margin:0 auto; padding:10px 20px; display:flex; align-items:center; gap:14px; }
+  .live-pill{ display:inline-flex; align-items:center; gap:8px; font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; letter-spacing:.08em; padding:7px 12px; border:1px solid var(--line); border-radius:999px; background:var(--panel); white-space:nowrap; }
+  .live-dot{ width:8px; height:8px; border-radius:50%; background:var(--live); animation:pulse 1.6s infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:1 } 50%{ opacity:.25 } }
+  @media (prefers-reduced-motion: reduce){ .live-dot{ animation:none } html{ scroll-behavior:auto } }
+  .nav-dropdown{ position:relative; margin-left:auto; flex:none; }
+  .nav-toggle{ display:inline-flex; align-items:center; gap:8px; font-weight:800; font-size:14px; line-height:1; padding:10px 14px; border:1px solid var(--line); border-radius:999px; background:var(--panel); color:var(--ink); min-height:40px; white-space:nowrap; }
+  .nav-toggle:hover{ border-color:var(--muted); }
+  .nav-toggle:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .nav-toggle .chev{ width:14px; height:14px; flex:none; transition:transform .16s ease; }
+  .nav-toggle[aria-expanded="true"] .chev{ transform:rotate(180deg); }
+  .nav-menu{ position:absolute; right:0; top:calc(100% + 8px); width:min(224px, calc(100vw - 32px)); background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:6px; display:none; flex-direction:column; gap:2px; z-index:60; }
+  .nav-menu.open{ display:flex; }
+  .nav-menu a{ text-decoration:none; font-weight:700; font-size:15px; padding:12px 14px; border-radius:8px; color:var(--ink); display:flex; align-items:center; justify-content:space-between; min-height:44px; }
+  .nav-menu a:hover, .nav-menu a:focus-visible{ color:var(--ink); background:var(--panel2); outline:none; }
+  .nav-menu a::after{ content:"›"; color:var(--muted); font-size:18px; line-height:1; }
+  .clock{ font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--muted); white-space:nowrap; }
+  @media (max-width:560px){ .clock{ display:none } .live-pill{ font-size:11px; padding:6px 10px; letter-spacing:.06em; } .nav-toggle{ padding:9px 13px; font-size:13.5px; } .topbar-in{ flex-wrap:nowrap; gap:10px; padding:10px 14px; } }
+
+  /* ---------- theater ---------- */
+  .theater{ display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:20px; padding-top:22px; }
+  @media (max-width:980px){ .theater{ grid-template-columns:1fr; } }
+  .screen{ background:#000; border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); border:1px solid var(--line); }
+  .stage{ position:relative; aspect-ratio:16/9; background:#000; }
+  .stage video,.stage iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; background:#000; }
+  .stage .standby{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; color:#e8e8e8; text-align:center; padding:24px; overflow:auto; }
+  @media (max-width:700px){
+    .stage:has(.standby){ aspect-ratio:auto; }
+    .stage:has(.standby) .standby{ position:relative; inset:auto; }
+  }
+  @media (max-width:560px){
+    .stage .standby{ gap:8px; padding:18px 16px; justify-content:center; }
+    .standby .big{ font-size:21px; }
+    .standby .sub{ font-size:13px; line-height:1.45; }
+    .standby button{ min-height:42px; padding:9px 20px; font-size:15px; }
+  }
+  .standby .big{ font-size:clamp(22px,4vw,38px); font-weight:900; letter-spacing:-.02em; line-height:1.05; }
+  .standby .sub{ color:#a7abb3; font-size:15px; max-width:46ch; }
+  .standby button{ background:var(--accent); color:var(--accent-ink); border:0; font-weight:800; font-size:16px; padding:12px 26px; border-radius:6px; min-height:48px; }
+  .spinner{ width:34px; height:34px; border-radius:50%; border:3px solid #333; border-top-color:var(--accent); animation:spin 0.8s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg) } }
+  @media (prefers-reduced-motion: reduce){ .spinner{ animation-duration:2.4s } }
+  .led-meta{ display:block; margin-top:6px; font-family:"IBM Plex Mono",monospace; font-size:11.5px; line-height:1.5; color:#9ba1ab; overflow-wrap:anywhere; }
+
+  /* ---------- TV control deck (under the video) ---------- */
+  .tv-deck{ margin-top:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); padding:14px; background-image:linear-gradient(180deg, color-mix(in srgb, var(--ink) 3%, transparent), transparent 55%); }
+  .deck-main{ display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:stretch; }
+  .play-btn{ width:56px; height:56px; border-radius:50%; border:0; background:var(--accent); color:var(--accent-ink); display:flex; align-items:center; justify-content:center; align-self:center; box-shadow:0 4px 14px color-mix(in srgb, var(--accent) 38%, transparent), inset 0 -3px 0 rgba(0,0,0,.18); transition:transform .12s ease; }
+  .play-btn:active{ transform:scale(.96); }
+  .play-btn svg{ width:24px; height:24px; fill:currentColor; display:block; }
+  .play-btn:focus-visible, .deck-surf button:focus-visible, .deck-ch:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .led{ background:#0b0c0f; border-radius:8px; border:1px solid #26282e; box-shadow:inset 0 2px 10px rgba(0,0,0,.75); padding:10px 14px 12px; display:block; min-width:0; }
+  .led-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .led-ch{ font-family:"IBM Plex Mono",monospace; font-size:21px; font-weight:600; color:#ffb020; text-shadow:0 0 9px rgba(255,176,32,.5); white-space:nowrap; line-height:1; }
+  .led-name{ display:block; width:100%; margin-top:7px; font-family:"IBM Plex Mono",monospace; font-size:15px; font-weight:600; color:#ffffff; white-space:normal; overflow-wrap:anywhere; line-height:1.35; }
+  .led-state{ font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:600; letter-spacing:.14em; color:#7ee787; text-shadow:0 0 8px rgba(126,231,135,.45); white-space:nowrap; }
+  .led-state.paused{ color:#ffb020; text-shadow:0 0 8px rgba(255,176,32,.45); }
+  .led-state.standby{ color:#8b9096; text-shadow:none; }
+  .deck-surf{ display:flex; align-items:stretch; gap:8px; }
+  .deck-surf button{ border:1px solid var(--line); border-bottom-width:3px; background:var(--panel2); color:var(--ink); border-radius:8px; font-weight:800; font-size:13.5px; padding:8px 13px; min-height:44px; white-space:nowrap; }
+  .deck-surf button:hover{ border-color:var(--accent); color:var(--accent); }
+  .deck-surf button:active{ border-bottom-width:1px; transform:translateY(1px); }
+  .deck-surf .dial{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 4px; min-width:44px; }
+  .deck-surf .dial .num{ font-family:"IBM Plex Mono",monospace; font-size:21px; font-weight:600; line-height:1; }
+  .deck-surf .dial .lbl{ font-size:9px; letter-spacing:.14em; color:var(--muted); font-weight:700; margin-top:3px; }
+  .deck-channels{ display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .deck-ch{ flex:1 1 64px; max-width:92px; display:flex; flex-direction:column; align-items:center; gap:2px; padding:7px 4px 6px; min-height:46px; background:var(--panel2); border:1px solid var(--line); border-bottom-width:3px; border-radius:7px; color:var(--ink); }
+  .deck-ch:active{ border-bottom-width:1px; transform:translateY(1px); }
+  .deck-ch:hover{ border-color:var(--accent); }
+  .deck-ch .dnum{ font-family:"IBM Plex Mono",monospace; font-size:15px; font-weight:600; line-height:1; color:var(--accent); }
+  .deck-ch .dname{ font-size:9.5px; font-weight:700; letter-spacing:.02em; line-height:1.15; text-align:center; color:var(--muted); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .deck-ch.active{ background:var(--ink); border-color:var(--ink); }
+  .deck-ch.active .dname{ color:var(--bg); opacity:.75; }
+  .deck-year{ margin-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .deck-year.active{ border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+  .deck-year-label{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+  .deck-year-kicker{ font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; letter-spacing:.14em; color:var(--accent); line-height:1; }
+  .deck-year-sub{ font-size:11.5px; font-weight:600; color:var(--muted); line-height:1.3; }
+  .deck-year select{ flex:1 1 150px; min-width:140px; font:inherit; font-size:15px; font-weight:700; padding:9px 12px; border:1px solid var(--line); border-radius:7px; background:var(--panel); color:var(--ink); min-height:44px; }
+  .deck-year select:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .deck-year-status{ font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted); white-space:nowrap; }
+  .deck-year.active .deck-year-status{ color:var(--ink); font-weight:600; }
+  @media (max-width:620px){
+    .deck-year{ gap:9px; padding:9px 10px; }
+    .deck-year-label{ flex:1 1 100%; flex-direction:row; align-items:baseline; gap:8px; }
+    .deck-year select{ flex:1 1 auto; }
+    .deck-year-status{ white-space:normal; }
+  }
+  .deck-hint{ margin:10px 2px 0; font-size:11.5px; color:var(--muted); font-family:"IBM Plex Mono",monospace; }
+  @media (max-width:620px){
+    .deck-main{ grid-template-columns:auto minmax(0,1fr); }
+    .deck-surf{ grid-column:1 / -1; }
+    .deck-surf button{ flex:1; }
+    .led{ padding:9px 12px 11px; }
+    .led-name{ font-size:15px; line-height:1.35; }
+    .deck-ch{ flex-basis:52px; max-width:none; }
+    .deck-hint{ display:none; }
+  }
+
+  .side{ display:flex; flex-direction:column; gap:16px; min-width:0; }
+  .panel{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; }
+  .panel h2{ margin:0; font-size:12px; letter-spacing:.14em; font-weight:800; color:var(--muted); text-transform:uppercase; }
+  .now-sub{ font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--muted); display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; }
+  .now-desc{ font-size:14.5px; line-height:1.55; color:var(--muted); margin:12px 0 0; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+  .row-actions{ display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+  .btn{ border:1px solid var(--line); background:var(--panel); color:var(--ink); font-weight:700; font-size:14px; padding:9px 14px; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:7px; min-height:40px; }
+  .btn:hover{ border-color:var(--muted); }
+  .btn.primary{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .btn[aria-pressed="true"]{ background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  .surf{ display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:stretch; }
+  .surf button{ border:1px solid var(--line); background:var(--panel2); color:var(--ink); border-radius:6px; font-weight:800; font-size:15px; padding:12px 8px; min-height:52px; }
+  .surf button:hover{ border-color:var(--accent); color:var(--accent); }
+  .surf .dial{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 10px; }
+  .surf .dial .num{ font-family:"IBM Plex Mono",monospace; font-size:26px; font-weight:600; line-height:1; }
+  .surf .dial .lbl{ font-size:10.5px; letter-spacing:.14em; color:var(--muted); font-weight:700; margin-top:4px; }
+  .upnext{ list-style:none; margin:12px 0 0; padding:0; display:flex; flex-direction:column; }
+  .upnext li{ display:flex; gap:10px; padding:9px 0; border-top:1px solid var(--line); font-size:14px; align-items:baseline; }
+  .upnext li:first-child{ border-top:0; }
+  .upnext .t{ font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--accent); font-weight:600; white-space:nowrap; }
+  .upnext .ttl{ font-weight:600; line-height:1.35; }
+  .keys-hint{ font-size:12.5px; color:var(--muted); line-height:1.7; }
+  .keys-hint kbd{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; background:var(--panel2); border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:1px 6px; color:var(--ink); }
+  @media (max-width:980px){ .keys-panel{ display:none } }
+
+  /* ---------- stats strip ---------- */
+  .stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:20px; }
+  @media (max-width:760px){ .stats{ grid-template-columns:repeat(2,1fr); } }
+  .stat{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; }
+  .stat .v{ font-size:clamp(24px,3.4vw,34px); font-weight:900; letter-spacing:-.02em; line-height:1; font-variant-numeric:tabular-nums; }
+  .stat .k{ font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-top:7px; }
+
+  /* ---------- sections ---------- */
+  section.block{ margin-top:52px; }
+  .sec-head{ display:flex; align-items:baseline; gap:16px; margin-bottom:18px; flex-wrap:wrap; }
+  .sec-head h2{ font-size:clamp(26px,4vw,38px); font-weight:900; letter-spacing:-.03em; margin:0; }
+  .sec-head p{ margin:0; color:var(--muted); font-size:15px; max-width:62ch; }
+  .sec-head .spacer{ flex:1; }
+
+  /* ---------- channel rail ---------- */
+  .rail{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+  @media (max-width:1080px){ .rail{ grid-template-columns:repeat(4,1fr); } }
+  @media (max-width:760px){ .rail{ grid-template-columns:repeat(3,1fr); } }
+  @media (max-width:520px){ .rail{ grid-template-columns:repeat(2,1fr); } }
+  .ch-card{ text-align:left; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:11px 12px; display:flex; flex-direction:column; gap:5px; min-height:104px; color:var(--ink); width:100%; }
+  .ch-card:hover{ border-color:var(--accent); }
+  .ch-card.active{ border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+  .ch-card .top{ display:flex; align-items:center; gap:8px; }
+  .ch-card .num{ font-family:"IBM Plex Mono",monospace; font-size:17px; font-weight:600; color:var(--accent); line-height:1; }
+  .ch-card .name{ font-weight:800; font-size:14px; letter-spacing:-.01em; line-height:1.15; }
+  .ch-card .desc{ font-size:12px; color:var(--muted); line-height:1.4; }
+  .ch-card .now{ margin-top:auto; font-size:12px; border-top:1px solid var(--line); padding-top:7px; line-height:1.35; }
+  .ch-card .now .lbl{ display:block; font-size:10.5px; font-weight:800; letter-spacing:.12em; color:var(--live); margin-bottom:3px; }
+  .ch-card .now .ttl{ font-weight:600; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+  /* ---------- guide ---------- */
+  .guide{ border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; background:var(--panel); }
+  .guide-row{ display:grid; grid-template-columns:210px 1fr 1fr 1fr; border-top:1px solid var(--line); }
+  .guide-row:first-child{ border-top:0; }
+  .guide-row.head{ background:var(--panel2); font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--muted); }
+  .guide-row.head > div{ padding:10px 14px; }
+  .g-ch{ padding:14px; display:flex; gap:10px; align-items:flex-start; border:0; background:none; text-align:left; color:var(--ink); width:100%; }
+  .g-ch .num{ font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:17px; color:var(--accent); }
+  .g-ch .name{ font-weight:800; font-size:14.5px; line-height:1.25; }
+  .g-cell{ padding:14px; border-left:1px solid var(--line); min-width:0; }
+  .g-cell .ttl{ font-weight:600; font-size:14px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .g-cell .yr{ font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted); margin-top:4px; }
+  .g-cell.now{ background:color-mix(in srgb, var(--accent) 9%, transparent); }
+  .g-cell .live-tag{ font-size:10.5px; font-weight:800; letter-spacing:.12em; color:var(--live); }
+  .guide-loading{ padding:22px; color:var(--muted); font-size:14px; }
+  @media (max-width:760px){
+    .guide-row{ grid-template-columns:1fr; }
+    .guide-row.head{ display:none; }
+    .g-cell{ border-left:0; border-top:1px dashed var(--line); padding:10px 14px 12px 52px; }
+    .g-cell::before{ content:attr(data-when); display:block; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); margin-bottom:3px; }
+  }
+
+  /* ---------- directory ---------- */
+  .directory{ border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; background:var(--panel); }
+  .dir-row{ display:grid; grid-template-columns:64px minmax(0,1fr) 148px; gap:18px; padding:20px; border-top:1px solid var(--line); align-items:start; }
+  .dir-row:first-child{ border-top:0; }
+  .dir-row:hover{ background:var(--panel2); }
+  .dir-row.is-live{ background:color-mix(in srgb, var(--accent) 6%, var(--panel)); }
+  .dir-num{ font-family:"IBM Plex Mono",monospace; font-size:28px; font-weight:600; line-height:1; color:var(--accent); padding-top:2px; }
+  .dir-row.is-live .dir-num{ color:var(--ink); }
+  .dir-live-badge{ display:inline-flex; align-items:center; gap:6px; margin-top:8px; font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:700; letter-spacing:.12em; color:var(--live); }
+  .dir-live-badge::before{ content:""; width:7px; height:7px; border-radius:50%; background:var(--live); }
+  .dir-main{ min-width:0; }
+  .dir-name{ margin:0; font-size:clamp(19px,2.6vw,26px); font-weight:900; letter-spacing:-.02em; line-height:1; text-transform:uppercase; }
+  .dir-desc{ margin:8px 0 0; font-size:14.5px; line-height:1.55; color:var(--muted); max-width:62ch; }
+  .dir-meta{ margin-top:10px; font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .dir-now{ margin-top:12px; border-top:1px dashed var(--line); padding-top:10px; }
+  .dir-now .lbl{ font-size:10.5px; font-weight:800; letter-spacing:.13em; color:var(--live); }
+  .dir-now .ttl{ display:block; margin-top:3px; font-weight:700; font-size:15px; line-height:1.35; }
+  .dir-now .next{ display:block; margin-top:3px; font-size:13px; color:var(--muted); line-height:1.4; }
+  .dir-side{ display:flex; flex-direction:column; gap:10px; }
+  .dir-thumb{ position:relative; aspect-ratio:4/3; background:#17181c; border-radius:6px; overflow:hidden; border:1px solid var(--line); }
+  .dir-thumb img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+  .dir-thumb .fallback{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:"IBM Plex Mono",monospace; font-size:22px; color:#3c3f46; }
+  .dir-tune{ width:100%; background:var(--ink); color:var(--bg); border:1px solid var(--ink); font-weight:800; font-size:13.5px; padding:10px 12px; border-radius:6px; min-height:42px; }
+  .dir-tune:hover{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .dir-row.is-live .dir-tune{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .directory-loading{ padding:22px; color:var(--muted); font-size:14px; }
+  @media (max-width:700px){
+    .dir-row{ grid-template-columns:48px minmax(0,1fr); gap:12px; padding:16px 14px; }
+    .dir-num{ font-size:22px; }
+    .dir-side{ grid-column:2; flex-direction:row; align-items:stretch; }
+    .dir-thumb{ width:110px; flex:none; }
+    .dir-tune{ flex:1; align-self:center; }
+  }
+
+  /* ---------- library ---------- */
+  .searchbar{ display:flex; gap:10px; flex-wrap:wrap; }
+  .searchbar .field{ flex:1 1 280px; display:flex; }
+  .searchbar input[type="search"]{ flex:1; font:inherit; font-size:17px; padding:12px 16px; border:1px solid var(--line); border-radius:6px 0 0 6px; background:var(--panel); color:var(--ink); min-height:52px; min-width:0; }
+  .searchbar .go{ background:var(--accent); color:var(--accent-ink); border:1px solid var(--accent); font-weight:800; font-size:15px; padding:0 24px; border-radius:0 6px 6px 0; min-height:52px; }
+  .searchbar select{ font:inherit; font-size:14.5px; font-weight:600; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); min-height:52px; }
+  .chips{ display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .chip{ border:1px solid var(--line); background:var(--chip); color:var(--ink); border-radius:999px; padding:8px 15px; font-size:13.5px; font-weight:700; min-height:38px; }
+  .chip:hover{ border-color:var(--accent); }
+  .chip[aria-pressed="true"]{ background:var(--ink); color:var(--bg); border-color:var(--ink); }
+  .lib-meta{ display:flex; align-items:baseline; gap:12px; margin:22px 0 14px; flex-wrap:wrap; }
+  .lib-meta .count{ font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--muted); }
+  .lib-meta h3{ margin:0; font-size:19px; font-weight:800; letter-spacing:-.01em; }
+  .grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
+  @media (max-width:1180px){ .grid{ grid-template-columns:repeat(4,1fr); } }
+  @media (max-width:900px){ .grid{ grid-template-columns:repeat(3,1fr); } }
+  @media (max-width:600px){ .grid{ grid-template-columns:repeat(2,1fr); } }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; display:flex; flex-direction:column; text-align:left; padding:0; color:var(--ink); width:100%; }
+  .card:hover{ border-color:var(--accent); }
+  .thumb{ position:relative; aspect-ratio:4/3; background:#17181c; overflow:hidden; }
+  .thumb .fallback{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:"IBM Plex Mono",monospace; font-size:30px; font-weight:600; color:#3c3f46; padding:10px; text-align:center; }
+  .thumb img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb .yr{ position:absolute; left:8px; bottom:8px; background:rgba(0,0,0,.78); color:#fff; font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:600; padding:3px 7px; border-radius:4px; }
+  .thumb .play{ position:absolute; right:8px; bottom:8px; width:30px; height:30px; border-radius:50%; background:var(--accent); color:var(--accent-ink); display:flex; align-items:center; justify-content:center; font-size:12px; }
+  .card .body{ padding:12px 13px 14px; display:flex; flex-direction:column; gap:5px; flex:1; }
+  .card .ttl{ font-weight:700; font-size:14.5px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .card .by{ font-size:12.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card .dl{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--muted); margin-top:auto; }
+  .loadmore{ display:flex; justify-content:center; margin-top:26px; }
+  .empty{ border:1px dashed var(--line); border-radius:var(--radius); padding:36px 22px; text-align:center; color:var(--muted); font-size:15px; line-height:1.6; }
+  .fav-head{ display:flex; align-items:baseline; gap:12px; margin-bottom:14px; }
+  .fav-head h3{ margin:0; font-size:19px; font-weight:800; }
+  .fav-head span{ font-size:13px; color:var(--muted); }
+
+  footer{ margin-top:64px; border-top:1px solid var(--line); padding-top:22px; display:flex; gap:18px; flex-wrap:wrap; align-items:baseline; }
+  footer p{ margin:0; font-size:13.5px; color:var(--muted); line-height:1.6; max-width:75ch; }
+  footer a{ font-weight:700; }
+  .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <span class="live-pill"><span class="live-dot" aria-hidden="true"></span>ON AIR · 13 CHANNELS</span>
+    <div class="nav-dropdown" id="navDropdown">
+      <button type="button" class="nav-toggle" id="navToggle" aria-haspopup="true" aria-expanded="false" aria-controls="navMenu">
+        <span>Menu</span>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <nav class="nav-menu" id="navMenu" aria-label="Sections">
+        <a href="#watch">Watch</a>
+        <a href="#channels">Channels</a>
+        <a href="#directory">Directory</a>
+        <a href="#guide">Guide</a>
+        <a href="#library">Library</a>
+      </nav>
+    </div>
+    <span class="clock mono" id="clock" aria-hidden="true"></span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ THEATER ============ -->
+  <div class="theater" id="watch">
+    <div>
+      <div class="screen">
+        <div class="stage" id="stage">
+          <div class="standby" id="standby">
+            <div class="big">From silent film to today,<br />already playing.</div>
+            <p class="sub">Every channel below is running right now, synced to the clock, streaming free from the Internet Archive, from silent film to this week's uploads. Pick one and drop in mid-show, the way TV used to work.</p>
+            <button type="button" id="tuneInBtn">▶&ensp;Tune in</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TV control deck: play/pause + compact channel buttons, right under the video -->
+      <div class="tv-deck" aria-label="TV controls">
+        <div class="deck-main">
+          <button type="button" class="play-btn" id="playPauseBtn" aria-label="Play">
+            <span id="playPauseIcon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24"><path d="M8 5v14l11-7z"/></svg></span>
+          </button>
+          <div class="led" aria-live="polite">
+            <div class="led-top">
+              <span class="led-ch" id="ledCh">CH --</span>
+              <span class="led-state standby" id="ledState">STANDBY</span>
+            </div>
+            <div class="led-name" id="ledName">No channel tuned yet</div>
+            <div class="led-meta" id="ledMeta">Channels change on the half hour</div>
+          </div>
+          <div class="deck-surf">
+            <button type="button" id="chDown" aria-label="Previous channel">− CH</button>
+            <div class="dial"><span class="num" id="dialNum">--</span><span class="lbl">CHANNEL</span></div>
+            <button type="button" id="chUp" aria-label="Next channel">CH +</button>
+          </div>
+        </div>
+        <div class="deck-year" id="deckYear">
+          <label class="deck-year-label" for="tvYear"><span class="deck-year-kicker">YEAR</span><span class="deck-year-sub">Watch TV from</span></label>
+          <select id="tvYear" aria-label="Choose a year to watch on TV">
+            <option value="">All years</option>
+          </select>
+          <span class="deck-year-status" id="tvYearStatus" aria-live="polite">All years playing</span>
+        </div>
+        <div class="deck-channels" id="deckChannels" role="group" aria-label="Channels"></div>
+        <p class="deck-hint">Tap a channel to tune in &nbsp;·&nbsp; Space play / pause &nbsp;·&nbsp; ↑ ↓ surf channels</p>
+      </div>
+
+      <div class="stats" aria-label="Archive at a glance">
+        <div class="stat"><div class="v" id="statTitles">14,022,379</div><div class="k">Films &amp; TV · all years</div></div>
+        <div class="stat"><div class="v">13</div><div class="k">Channels, always on</div></div>
+        <div class="stat"><div class="v">126<span style="font-size:.55em; font-weight:800;">yrs</span></div><div class="k">Of footage, 1900 to today</div></div>
+        <div class="stat"><div class="v">$0</div><div class="k">No account, no ads</div></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="panel">
+        <h2>About this title</h2>
+        <div class="now-sub"><span id="nowYear"></span><span id="nowBy"></span></div>
+        <p class="now-desc" id="nowDesc">Surf the channels below, or search the library and press play on anything. It all streams straight from archive.org.</p>
+        <div class="row-actions">
+          <button type="button" class="btn" id="favBtn" aria-pressed="false">♡&ensp;Favorite</button>
+          <a class="btn" id="archiveLink" href="https://archive.org" target="_blank" rel="noopener">View on Archive.org ↗</a>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Coming up on this channel</h2>
+        <ul class="upnext" id="upNext"><li><span class="ttl" style="color:var(--muted); font-weight:500;">Tune in to see the schedule.</span></li></ul>
+      </div>
+
+      <div class="panel keys-panel">
+        <h2 style="margin-bottom:10px;">Remote</h2>
+        <p class="keys-hint"><kbd>Space</kbd> play / pause &nbsp;·&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> change channel<br /><kbd>←</kbd> <kbd>→</kbd> skip show &nbsp;·&nbsp; <kbd>G</kbd> jump to guide &nbsp;·&nbsp; <kbd>/</kbd> search the library</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CHANNELS ============ -->
+  <section class="block" id="channels">
+    <div class="sec-head">
+      <h2>Channels</h2>
+      <p>Thirteen stations cut from the Archive's collections, classics to fresh uploads. Each one runs on the same clock for everyone, in half-hour blocks, around the clock.</p>
+    </div>
+    <div class="rail" id="rail"></div>
+  </section>
+
+  <!-- ============ DIRECTORY ============ -->
+  <section class="block" id="directory">
+    <div class="sec-head">
+      <h2>Directory</h2>
+      <p>Every channel on the dial, in dial order, and what is on each one right now. Counts are the live Archive pool for that channel, the Now Playing title follows the same half-hour clock as the TV above.</p>
+    </div>
+    <div class="directory" id="directoryBox"><div class="directory-loading">Loading the directory from the Archive…</div></div>
+  </section>
+
+  <!-- ============ GUIDE ============ -->
+  <section class="block" id="guide">
+    <div class="sec-head">
+      <h2>Guide</h2>
+      <p id="guideNote">What's on now, and what's next. Tap any channel to tune in.</p>
+    </div>
+    <div class="guide" id="guideBox"><div class="guide-loading">Loading the schedule from the Archive…</div></div>
+  </section>
+
+  <!-- ============ LIBRARY ============ -->
+  <section class="block" id="library">
+    <div class="sec-head">
+      <h2>Library</h2>
+      <p>Search the full Internet Archive movie collection, everything from 1900 to today, classics and current uploads alike. Press play and it starts right here.</p>
+    </div>
+
+    <form class="searchbar" id="searchForm" role="search">
+      <div class="field">
+        <label class="sr" for="q">Search the Archive</label>
+        <input type="search" id="q" name="q" placeholder="Try “Dracula”, “Popeye”, “Apollo 11”, “drive-in”…" autocomplete="off" />
+        <button class="go" type="submit">Search</button>
+      </div>
+      <label class="sr" for="decade">Decade</label>
+      <select id="decade">
+        <option value="">All years · classics to today</option>
+        <option value="1900,1929">1900s–1920s · Silent era</option>
+        <option value="1930,1939">1930s</option>
+        <option value="1940,1949">1940s</option>
+        <option value="1950,1959">1950s</option>
+        <option value="1960,1969">1960s</option>
+        <option value="1970,1979">1970s</option>
+        <option value="1980,1989">1980s</option>
+        <option value="1990,1999">1990s</option>
+        <option value="2000,2009">2000s</option>
+        <option value="2010,2019">2010s</option>
+        <option value="2020,2026">2020s · to today</option>
+      </select>
+      <label class="sr" for="sort">Sort</label>
+      <select id="sort">
+        <option value="downloads desc">Most watched</option>
+        <option value="">Best match</option>
+        <option value="year desc">Newest first</option>
+        <option value="year asc">Oldest first</option>
+        <option value="titleSorter asc">Title A–Z</option>
+      </select>
+    </form>
+
+    <div class="chips" id="chips" aria-label="Quick topics"></div>
+
+    <div id="favWrap" hidden>
+      <div class="fav-head" style="margin-top:30px;"><h3>Your favorites</h3><span>Kept for this visit only.</span></div>
+      <div class="grid" id="favGrid"></div>
+    </div>
+
+    <div class="lib-meta">
+      <h3 id="libTitle">Most watched</h3>
+      <span class="count" id="libCount"></span>
+    </div>
+    <div class="grid" id="grid" aria-live="polite"></div>
+    <div id="libEmpty"></div>
+    <div class="loadmore"><button type="button" class="btn" id="moreBtn" hidden>Load more results</button></div>
+  </section>
+
+  <footer>
+    <p>Every video on this page streams directly from the <a href="https://archive.org" target="_blank" rel="noopener">Internet Archive</a>, a nonprofit library of millions of free books, movies, software, music, and more. Titles, artwork, and playback all come from archive.org at the moment you press play. Channel schedules are generated from the clock, so everyone who tunes in sees the same show at the same point.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+var SLOT = 1800; /* 30-minute programming blocks, aligned to the epoch */
+var API = "https://archive.org/advancedsearch.php";
+var FIELDS = ["identifier","title","year","creator","description","downloads"];
+
+var CHANNELS = [
+  { num:"02", name:"Saturday Morning", desc:"Classic cartoons and animation, from Popeye to public-domain oddities.", q:"(collection:classic_cartoons OR collection:animationandcartoons) AND mediatype:movies AND year:[* TO 2026]" },
+  { num:"03", name:"Feature Films", desc:"Golden-age Hollywood features, 1930s through the 1960s.", q:"collection:feature_films AND mediatype:movies AND year:[1930 TO 1969]" },
+  { num:"04", name:"Noir", desc:"Film noir and crime: shadows, dames, and double-crosses.", q:"subject:\"film noir\" AND mediatype:movies AND year:[* TO 2026]" },
+  { num:"05", name:"Sci-Fi Theater", desc:"Science fiction features, rocket ships to rubber monsters.", q:"subject:\"science fiction\" AND mediatype:movies AND year:[* TO 2026]" },
+  { num:"06", name:"Horror After Dark", desc:"Horror features and creature shocks from the vault.", q:"subject:horror AND mediatype:movies AND year:[* TO 2026]" },
+  { num:"07", name:"Prelinger", desc:"The Prelinger Archives: ads, school films, and mid-century Americana.", q:"collection:prelinger AND mediatype:movies AND year:[* TO 2026]" },
+  { num:"08", name:"Newsreel Room", desc:"Universal Newsreels: the week's history, as theaters saw it.", q:"collection:universal_newsreels AND mediatype:movies AND year:[* TO 2026]" },
+  { num:"09", name:"Computer Chronicles", desc:"The classic PBS tech show, chronicling the PC revolution as it happened.", q:"title:\"Computer Chronicles\" AND mediatype:movies AND year:[* TO 2026]" },
+  { num:"10", name:"Silent Era", desc:"Features from 1900 to 1929, before talkies took over.", q:"collection:feature_films AND mediatype:movies AND year:[1900 TO 1929]" },
+  { num:"11", name:"NASA & Space", desc:"Space agency film: Apollo, shuttle, and the science in between.", q:"collection:nasa AND mediatype:movies AND year:[* TO 2026]" },
+  { num:"12", name:"Commercial Break", desc:"Decades of television commercials, jingles and all.", q:"subject:\"television commercials\" AND mediatype:movies AND year:[* TO 2026]" },
+  { num:"13", name:"VHS Vault", desc:"Off-air VHS recordings: broadcasts, promos, and late-night TV as taped.", q:"collection:vhscommercials AND mediatype:movies AND year:[* TO 2026]" },
+  { num:"14", name:"Fresh & Recent", desc:"Broadcasts, talks, and uploads from 2015 to today, the newest side of the Archive.", q:"mediatype:movies AND year:[2015 TO 2026]" }
+];
+
+var TOPICS = [
+  { label:"Chaplin", q:"creator:\"Charlie Chaplin\"" },
+  { label:"Dracula & vampires", q:"title:(Dracula)" },
+  { label:"Sherlock Holmes", q:"title:(\"Sherlock Holmes\")" },
+  { label:"Apollo & the Moon", q:"(title:(Apollo) OR subject:(Apollo))" },
+  { label:"Drive-in & B-movies", q:"collection:feature_films AND subject:(exploitation)" },
+  { label:"World War II", q:"subject:\"World War II\" AND collection:feature_films" },
+  { label:"Classic Westerns", q:"subject:(western) AND collection:feature_films" },
+  { label:"Public domain horror", q:"subject:(horror) AND year:[1930 TO 1979]" },
+  { label:"2010s & 2020s · recent", q:"year:[2010 TO 2026]" }
+];
+
+var state = {
+  channel: -1,            /* index into CHANNELS, -1 = none */
+  playlists: {},          /* channel idx -> docs[] */
+  pos: 0,                 /* position in current playlist */
+  current: null,          /* doc now playing */
+  mode: "idle",           /* idle | channel | library */
+  yearFilter: null,       /* null = all years, otherwise a single year e.g. 1987 */
+  dirCounts: {},          /* channel idx -> total titles in Archive for that channel query */
+  favs: new Map(),
+  lib: { q:"", topic:null, page:0, total:0, loading:false }
+};
+
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function fmtInt(n){ n = Number(n)||0; return n.toLocaleString("en-US"); }
+function fmtDownloads(n){ n=Number(n)||0; if(n>=1000000) return (n/1000000).toFixed(1).replace(/\.0$/,"")+"M views"; if(n>=1000) return (n/1000).toFixed(1).replace(/\.0$/,"")+"K views"; return n+" views"; }
+function cleanDesc(d){
+  var s = String(d||"").replace(/<[^>]*>/g," ").replace(/\s+/g," ").trim();
+  return s;
+}
+function slotIndex(){ return Math.floor(Date.now()/1000/SLOT); }
+function slotStartTime(k){ return new Date((slotIndex()+k)*SLOT*1000); }
+function fmtTime(d){ return d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}); }
+function thumb(id){ return "https://archive.org/services/img/"+encodeURIComponent(id); }
+
+function iaSearch(q, opts){
+  opts = opts||{};
+  var rows = opts.rows||24, page = opts.page||0, sort = opts.sort;
+  var params = new URLSearchParams();
+  params.set("q", q);
+  FIELDS.forEach(function(f){ params.append("fl[]", f); });
+  params.set("rows", String(rows));
+  params.set("page", String(page));
+  params.set("output","json");
+  if(sort) params.append("sort[]", sort);
+  return fetch(API+"?"+params.toString()).then(function(r){
+    if(!r.ok) throw new Error("Archive search failed ("+r.status+")");
+    return r.json();
+  }).then(function(j){ return { docs:(j.response&&j.response.docs)||[], total:(j.response&&j.response.numFound)||0 }; });
+}
+
+/* Seeded shuffle so every visitor gets the same channel order */
+function seededShuffle(arr, seed){
+  var a = arr.slice(), s = seed*2654435761 % 4294967296;
+  function rnd(){ s = (s*1664525 + 1013904223) % 4294967296; return s/4294967296; }
+  for(var i=a.length-1;i>0;i--){ var j=Math.floor(rnd()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
+
+function channelQuery(idx){
+  if(!state.yearFilter) return CHANNELS[idx].q;
+  return "(" + CHANNELS[idx].q + ") AND year:" + state.yearFilter;
+}
+function loadPlaylist(idx){
+  if(state.playlists[idx]) return Promise.resolve(state.playlists[idx]);
+  return iaSearch(channelQuery(idx), { rows:48, sort:"downloads desc" }).then(function(res){
+    var docs = seededShuffle(res.docs, idx+7);
+    state.playlists[idx] = docs;
+    return docs;
+  }).catch(function(){ state.playlists[idx] = []; return []; });
+}
+
+/* ---------- TV control deck ---------- */
+var ICON_PLAY = '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M8 5v14l11-7z"/></svg>';
+var ICON_PAUSE = '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+var embedPausedDoc = null; /* doc held while an embed "pause" is showing a still */
+
+function renderDeck(){
+  var box = $("deckChannels");
+  if(!box) return;
+  box.innerHTML = CHANNELS.map(function(ch, i){
+    return '<button type="button" class="deck-ch" data-dch="'+i+'" aria-label="Tune to channel '+ch.num+', '+esc(ch.name)+'">'
+      + '<span class="dnum">'+ch.num+'</span><span class="dname">'+esc(ch.name)+'</span></button>';
+  }).join("");
+  Array.prototype.forEach.call(box.querySelectorAll(".deck-ch"), function(btn){
+    btn.addEventListener("click", function(){ tuneChannel(Number(btn.getAttribute("data-dch"))); });
+  });
+}
+function currentVideo(){ return $("stage").querySelector("video"); }
+function setPlayUI(playing, label){
+  var btn = $("playPauseBtn"), icon = $("playPauseIcon"), st = $("ledState");
+  if(icon) icon.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
+  if(btn) btn.setAttribute("aria-label", playing ? "Pause" : "Play");
+  if(st){
+    st.textContent = label || (playing ? "PLAYING" : "PAUSED");
+    st.className = "led-state" + (playing ? "" : (state.current ? " paused" : " standby"));
+  }
+}
+function syncPlayUI(){
+  var v = currentVideo();
+  if(v){ setPlayUI(!v.paused && !v.ended); return; }
+  if(embedPausedDoc){ setPlayUI(false); return; }
+  if($("stage").querySelector("iframe")){ setPlayUI(true, "LIVE"); return; }
+  setPlayUI(false);
+}
+function syncLed(){
+  var chEl = $("ledCh"), nameEl = $("ledName");
+  if(!chEl || !nameEl) return;
+  if(state.mode==="channel" && state.channel>=0){
+    chEl.textContent = "CH " + CHANNELS[state.channel].num;
+    nameEl.textContent = state.current ? (state.current.title || state.current.identifier) : CHANNELS[state.channel].name;
+  } else if(state.current){
+    chEl.textContent = "LIBRARY";
+    nameEl.textContent = state.current.title || state.current.identifier;
+  } else {
+    chEl.textContent = "CH --";
+    nameEl.textContent = "No channel tuned yet";
+  }
+  nameEl.title = nameEl.textContent;
+}
+function togglePlayPause(){
+  var v = currentVideo();
+  if(v){
+    if(v.paused || v.ended){ var p = v.play(); if(p && p.catch) p.catch(function(){}); }
+    else v.pause();
+    return;
+  }
+  var frame = $("stage").querySelector("iframe");
+  if(frame && state.current){
+    /* Embeds expose no pause API here, so pause holds a still of the title instead */
+    embedPausedDoc = state.current;
+    $("stage").innerHTML = '<div class="standby"><div class="big">Paused</div><p class="sub">'+esc(embedPausedDoc.title||embedPausedDoc.identifier)+'</p><p class="sub">Press play to pick it back up.</p></div>';
+    setPlayUI(false);
+    return;
+  }
+  if(embedPausedDoc){
+    var doc = embedPausedDoc; embedPausedDoc = null;
+    useEmbed(doc); setPlayUI(true, "LIVE");
+    return;
+  }
+  /* Nothing playing yet: the play button tunes in, like the old power button */
+  tuneChannel(state.channel<0 ? Math.floor(Math.random()*CHANNELS.length) : state.channel);
+}
+
+/* ---------- playback ---------- */
+function pickStream(files){
+  if(!files) return null;
+  var mp4s = files.filter(function(f){ return f && f.name && /\.mp4$/i.test(f.name) && f.source!=="metadata"; });
+  if(!mp4s.length) return null;
+  mp4s.sort(function(a,b){ return (Number(a.size)||0)-(Number(b.size)||0); });
+  /* Prefer a mid-sized derivative: small enough to start fast, big enough to look right */
+  var under = mp4s.filter(function(f){ return (Number(f.size)||0) <= 700*1024*1024; });
+  var pick = under.length ? under[under.length-1] : mp4s[0];
+  return pick;
+}
+
+function setStageLoading(title){
+  $("stage").innerHTML = '<div class="standby"><div class="spinner" role="status" aria-label="Loading"></div><div class="sub">Reaching into the Archive'+(title? ' for <strong style="color:#fff">'+esc(title)+'</strong>':"")+'…</div></div>';
+  if(title){ var ln = $("ledName"); if(ln) ln.textContent = title; }
+  var st = $("ledState");
+  if(st){ st.textContent = "TUNING"; st.className = "led-state paused"; }
+  var icon = $("playPauseIcon"); if(icon) icon.innerHTML = ICON_PLAY;
+}
+
+function playDoc(doc, opts){
+  opts = opts||{};
+  embedPausedDoc = null;
+  state.current = doc;
+  state.mode = opts.channel!=null ? "channel" : "library";
+  if(opts.channel!=null){ state.channel = opts.channel; }
+  if(opts.pos!=null){ state.pos = opts.pos; }
+  updateNowPanel(doc);
+  markActiveChannel();
+  setStageLoading(doc.title);
+  var seek = opts.seek||0;
+  fetch("https://archive.org/metadata/"+encodeURIComponent(doc.identifier))
+    .then(function(r){ return r.json(); })
+    .then(function(meta){
+      var files = meta && meta.files;
+      var pick = pickStream(files);
+      if(!pick) throw new Error("no mp4");
+      var src = "https://archive.org/download/"+encodeURIComponent(doc.identifier)+"/"+encodeURIComponent(pick.name);
+      var stage = $("stage");
+      stage.innerHTML = "";
+      var v = document.createElement("video");
+      v.controls = true; v.autoplay = true; v.playsInline = true;
+      v.poster = thumb(doc.identifier);
+      v.src = src;
+      v.setAttribute("aria-label", doc.title||"Archive video");
+      if(seek>0){
+        v.addEventListener("loadedmetadata", function(){
+          try{ if(v.duration && seek < v.duration-20){ v.currentTime = seek; } }catch(e){}
+        });
+      }
+      v.addEventListener("ended", function(){ syncPlayUI(); advance(); });
+      v.addEventListener("play", syncPlayUI);
+      v.addEventListener("pause", syncPlayUI);
+      v.addEventListener("error", function(){ useEmbed(doc); }, true);
+      stage.appendChild(v);
+      syncPlayUI(); syncLed();
+      var p = v.play(); if(p && p.catch) p.catch(function(){});
+    })
+    .catch(function(){ useEmbed(doc); });
+}
+
+function useEmbed(doc){
+  var stage = $("stage");
+  stage.innerHTML = "";
+  var f = document.createElement("iframe");
+  f.src = "https://archive.org/embed/"+encodeURIComponent(doc.identifier)+"?autoplay=1";
+  f.allow = "autoplay; fullscreen";
+  f.allowFullscreen = true;
+  f.title = doc.title||"Archive video";
+  stage.appendChild(f);
+  embedPausedDoc = null;
+  setPlayUI(true, "LIVE"); syncLed();
+}
+
+function advance(){
+  if(state.mode==="channel" && state.channel>=0){
+    var list = state.playlists[state.channel]||[];
+    if(list.length){
+      var next = (state.pos+1)%list.length;
+      playDoc(list[next], { channel:state.channel, pos:next, seek:0 });
+      return;
+    }
+  }
+  /* library mode: nothing queued */
+}
+
+function tuneChannel(idx, fromSurf){
+  idx = ((idx % CHANNELS.length)+CHANNELS.length)%CHANNELS.length;
+  state.channel = idx;
+  markActiveChannel();
+  setStageLoading(CHANNELS[idx].name);
+  var lm = $("ledMeta"); if(lm) lm.textContent = CHANNELS[idx].name + " · tuning in…";
+  loadPlaylist(idx).then(function(list){
+    if(!list.length){
+      var emptyMsg = state.yearFilter
+        ? 'Nothing on this channel is from ' + state.yearFilter + '. Try another channel, a different year, or set the year back to All years.'
+        : 'This channel came back empty from the Archive just now. Try another channel, or try again in a moment.';
+      $("stage").innerHTML = '<div class="standby"><div class="big">Static.</div><p class="sub">' + esc(emptyMsg) + '</p></div>';
+      var st2 = $("ledState"); if(st2){ st2.textContent = "NO SIGNAL"; st2.className = "led-state standby"; }
+      return;
+    }
+    var pos = slotIndex() % list.length;
+    var seek = Math.floor(Date.now()/1000) % SLOT;
+    playDoc(list[pos], { channel:idx, pos:pos, seek:seek });
+    renderRailNow(); renderGuide(); renderUpNext();
+  });
+}
+
+function updateNowPanel(doc){
+  $("nowYear").textContent = doc.year ? "Year " + doc.year : "";
+  $("nowBy").textContent = doc.creator ? String(doc.creator).slice(0,80) : "";
+  var d = cleanDesc(doc.description);
+  $("nowDesc").textContent = d || "No description in the Archive record for this title.";
+  $("archiveLink").href = "https://archive.org/details/"+encodeURIComponent(doc.identifier);
+  if(state.channel>=0 && state.mode==="channel"){
+    $("dialNum").textContent = CHANNELS[state.channel].num;
+    var into = Math.floor((Date.now()/1000) % SLOT);
+    $("ledMeta").textContent = CHANNELS[state.channel].name + " · LIVE SYNC · dropped in "+Math.floor(into/60)+" min into the block · next show "+fmtTime(slotStartTime(1));
+  } else {
+    $("ledMeta").textContent = "Playing from the library";
+  }
+  syncFavBtn();
+  renderUpNext();
+  syncLed();
+}
+
+function renderUpNext(){
+  var ul = $("upNext");
+  if(state.mode!=="channel" || state.channel<0){ 
+    if(state.mode!=="channel") ul.innerHTML = '<li><span class="ttl" style="color:var(--muted); font-weight:500;">You are watching from the library. Tune to a channel for a running schedule.</span></li>';
+    return;
+  }
+  var list = state.playlists[state.channel]||[];
+  if(!list.length){ ul.innerHTML=""; return; }
+  var html = "";
+  for(var k=1;k<=3;k++){
+    var doc = list[(state.pos+k)%list.length];
+    html += '<li><span class="t">'+esc(fmtTime(slotStartTime(k)))+'</span><span class="ttl">'+esc(doc.title||doc.identifier)+'</span></li>';
+  }
+  ul.innerHTML = html;
+}
+
+/* ---------- channel rail + guide ---------- */
+function currentDocFor(idx){
+  var list = state.playlists[idx];
+  if(!list || !list.length) return null;
+  return list[slotIndex()%list.length];
+}
+function renderRail(){
+  var rail = $("rail");
+  rail.innerHTML = CHANNELS.map(function(ch, i){
+    return '<button type="button" class="ch-card" data-ch="'+i+'" aria-label="Tune to channel '+ch.num+', '+esc(ch.name)+'">'
+      + '<span class="top"><span class="num">'+ch.num+'</span><span class="name">'+esc(ch.name)+'</span></span>'
+      + '<span class="desc">'+esc(ch.desc)+'</span>'
+      + '<span class="now"><span class="lbl">● ON NOW</span><span class="ttl" data-now-for="'+i+'">Loading…</span></span>'
+      + '</button>';
+  }).join("");
+  Array.prototype.forEach.call(rail.querySelectorAll(".ch-card"), function(btn){
+    btn.addEventListener("click", function(){
+      tuneChannel(Number(btn.getAttribute("data-ch")));
+      $("watch").scrollIntoView({behavior:"smooth", block:"start"});
+    });
+  });
+}
+function renderRailNow(){
+  CHANNELS.forEach(function(ch, i){
+    var el = document.querySelector('[data-now-for="'+i+'"]');
+    if(!el) return;
+    var doc = currentDocFor(i);
+    el.textContent = doc ? (doc.title||doc.identifier) : "Schedule unavailable right now";
+  });
+}
+function markActiveChannel(){
+  Array.prototype.forEach.call(document.querySelectorAll(".ch-card"), function(btn){
+    var on = state.mode==="channel" && Number(btn.getAttribute("data-ch"))===state.channel;
+    btn.classList.toggle("active", on);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".deck-ch"), function(btn){
+    var on = state.mode==="channel" && Number(btn.getAttribute("data-dch"))===state.channel;
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", on?"true":"false");
+  });
+  if(state.channel>=0){ $("dialNum").textContent = CHANNELS[state.channel].num; }
+  syncLed();
+  if(typeof renderDirectoryNow==="function") renderDirectoryNow();
+}
+function renderGuide(){
+  var box = $("guideBox");
+  var any = CHANNELS.some(function(ch,i){ return (state.playlists[i]||[]).length; });
+  if(!any){ box.innerHTML = '<div class="guide-loading">The schedule did not load from the Archive. Channels above will still tune in on tap.</div>'; return; }
+  var head = '<div class="guide-row head"><div>CHANNEL</div><div>NOW · until '+esc(fmtTime(slotStartTime(1)))+'</div><div>'+esc(fmtTime(slotStartTime(1)))+'</div><div>'+esc(fmtTime(slotStartTime(2)))+'</div></div>';
+  var rows = CHANNELS.map(function(ch, i){
+    var list = state.playlists[i]||[];
+    function cell(k){
+      if(!list.length) return '<div class="g-cell" data-when="'+(k===0?"Now":esc(fmtTime(slotStartTime(k))))+'"><span class="ttl" style="color:var(--muted)">—</span></div>';
+      var doc = list[(slotIndex()+k)%list.length];
+      return '<div class="g-cell'+(k===0?" now":"")+'" data-when="'+(k===0?("Now · until "+esc(fmtTime(slotStartTime(1)))):esc(fmtTime(slotStartTime(k))))+'">'
+        + (k===0?'<span class="live-tag">● LIVE&ensp;</span>':"")
+        + '<span class="ttl">'+esc(doc.title||doc.identifier)+'</span>'
+        + (doc.year?'<div class="yr">'+esc(doc.year)+'</div>':"")
+        + '</div>';
+    }
+    return '<div class="guide-row">'
+      + '<button type="button" class="g-ch" data-gch="'+i+'" aria-label="Tune to channel '+ch.num+', '+esc(ch.name)+'"><span class="num">'+ch.num+'</span><span class="name">'+esc(ch.name)+'</span></button>'
+      + cell(0)+cell(1)+cell(2)
+      + '</div>';
+  }).join("");
+  box.innerHTML = head + rows;
+  Array.prototype.forEach.call(box.querySelectorAll("[data-gch]"), function(btn){
+    btn.addEventListener("click", function(){
+      tuneChannel(Number(btn.getAttribute("data-gch")));
+      $("watch").scrollIntoView({behavior:"smooth", block:"start"});
+    });
+  });
+}
+
+/* ---------- directory ---------- */
+function renderDirectory(){
+  var box = $("directoryBox");
+  if(!box) return;
+  box.innerHTML = CHANNELS.map(function(ch, i){
+    var isLive = state.mode==="channel" && state.channel===i;
+    return '<article class="dir-row'+(isLive?" is-live":"")+'" data-dir-row="'+i+'">'
+      + '<div><div class="dir-num">'+ch.num+'</div>'+(isLive?'<span class="dir-live-badge">ON AIR</span>':"")+'</div>'
+      + '<div class="dir-main">'
+      +   '<h3 class="dir-name">'+esc(ch.name)+'</h3>'
+      +   '<p class="dir-desc">'+esc(ch.desc)+'</p>'
+      +   '<div class="dir-meta" data-dir-count-for="'+i+'">Loading titles…</div>'
+      +   '<div class="dir-now"><span class="lbl">● NOW PLAYING</span><span class="ttl" data-dir-now-for="'+i+'">Loading…</span><span class="next" data-dir-next-for="'+i+'"></span></div>'
+      + '</div>'
+      + '<div class="dir-side">'
+      +   '<div class="dir-thumb" data-dir-thumb-for="'+i+'"><span class="fallback">'+ch.num+'</span></div>'
+      +   '<button type="button" class="dir-tune" data-dir-tune="'+i+'">'+(isLive?"Watching now":"Tune in · CH "+ch.num)+'</button>'
+      + '</div>'
+      + '</article>';
+  }).join("");
+  Array.prototype.forEach.call(box.querySelectorAll("[data-dir-tune]"), function(btn){
+    btn.addEventListener("click", function(){
+      tuneChannel(Number(btn.getAttribute("data-dir-tune")));
+      $("watch").scrollIntoView({behavior:"smooth", block:"start"});
+    });
+  });
+  renderDirectoryNow();
+}
+function renderDirectoryNow(){
+  CHANNELS.forEach(function(ch, i){
+    var row = document.querySelector('[data-dir-row="'+i+'"]');
+    if(row){
+      var isLive = state.mode==="channel" && state.channel===i;
+      row.classList.toggle("is-live", isLive);
+      var tuneBtn = row.querySelector("[data-dir-tune]");
+      if(tuneBtn) tuneBtn.textContent = isLive ? "Watching now" : ("Tune in · CH "+ch.num);
+      /* live badge: rebuild number cell if needed */
+      var numCell = row.firstElementChild;
+      if(numCell && isLive && !numCell.querySelector(".dir-live-badge")){
+        numCell.insertAdjacentHTML("beforeend", '<span class="dir-live-badge">ON AIR</span>');
+      }
+      if(numCell && !isLive){
+        var badge = numCell.querySelector(".dir-live-badge");
+        if(badge) badge.remove();
+      }
+    }
+    var countEl = document.querySelector('[data-dir-count-for="'+i+'"]');
+    if(countEl){
+      if(state.dirCounts[i]!=null) countEl.textContent = fmtInt(state.dirCounts[i]) + " TITLES IN THE ARCHIVE" + (state.yearFilter ? " · " + state.yearFilter : "");
+      else countEl.textContent = "Counting titles…";
+    }
+    var nowEl = document.querySelector('[data-dir-now-for="'+i+'"]');
+    var nextEl = document.querySelector('[data-dir-next-for="'+i+'"]');
+    var thumbEl = document.querySelector('[data-dir-thumb-for="'+i+'"]');
+    var doc = currentDocFor(i);
+    if(nowEl) nowEl.textContent = doc ? (doc.title||doc.identifier) : "Schedule unavailable right now";
+    if(nextEl){
+      var list = state.playlists[i]||[];
+      if(list.length){
+        var nxt = list[(slotIndex()+1)%list.length];
+        nextEl.textContent = "Up next " + fmtTime(slotStartTime(1)) + " · " + (nxt.title||nxt.identifier);
+      } else nextEl.textContent = "";
+    }
+    if(thumbEl && doc){
+      var want = thumb(doc.identifier);
+      var img = thumbEl.querySelector("img");
+      if(!img || img.getAttribute("data-src-id")!==doc.identifier){
+        thumbEl.innerHTML = '<span class="fallback">'+ch.num+'</span><img src="'+want+'" alt="" loading="lazy" data-src-id="'+esc(doc.identifier)+'" onerror="this.remove()" />';
+      }
+    }
+  });
+}
+function loadDirCounts(){
+  CHANNELS.forEach(function(ch, i){
+    iaSearch(channelQuery(i), { rows:1 }).then(function(res){
+      state.dirCounts[i] = res.total;
+      renderDirectoryNow();
+    }).catch(function(){});
+  });
+}
+
+/* ---------- favorites (this visit only) ---------- */
+function syncFavBtn(){
+  var doc = state.current;
+  var on = doc && state.favs.has(doc.identifier);
+  var b = $("favBtn");
+  b.setAttribute("aria-pressed", on?"true":"false");
+  b.innerHTML = on ? "♥&ensp;Favorited" : "♡&ensp;Favorite";
+}
+function renderFavs(){
+  var wrap = $("favWrap");
+  if(!state.favs.size){ wrap.hidden = true; return; }
+  wrap.hidden = false;
+  $("favGrid").innerHTML = Array.from(state.favs.values()).map(cardHTML).join("");
+  bindCards($("favGrid"));
+}
+
+/* ---------- library ---------- */
+function cardHTML(doc){
+  var initial = esc((doc.title||"?").trim().charAt(0).toUpperCase()||"?");
+  return '<button type="button" class="card" data-id="'+esc(doc.identifier)+'" aria-label="Play '+esc(doc.title||doc.identifier)+'">'
+    + '<span class="thumb"><span class="fallback">'+initial+'</span>'
+    + '<img src="'+thumb(doc.identifier)+'" alt="" loading="lazy" onerror="this.remove()" />'
+    + (doc.year?'<span class="yr">'+esc(doc.year)+'</span>':"")
+    + '<span class="play" aria-hidden="true">▶</span></span>'
+    + '<span class="body"><span class="ttl">'+esc(doc.title||doc.identifier)+'</span>'
+    + (doc.creator?'<span class="by">'+esc(String(doc.creator).slice(0,60))+'</span>':"")
+    + '<span class="dl">'+esc(fmtDownloads(doc.downloads))+'</span></span></button>';
+}
+var docCache = new Map();
+function bindCards(container){
+  Array.prototype.forEach.call(container.querySelectorAll(".card"), function(card){
+    card.addEventListener("click", function(){
+      var doc = docCache.get(card.getAttribute("data-id"));
+      if(doc){
+        playDoc(doc, {});
+        $("watch").scrollIntoView({behavior:"smooth", block:"start"});
+      }
+    });
+  });
+}
+function buildLibQuery(){
+  var parts = ["mediatype:movies"];
+  var decade = $("decade").value;
+  if(decade){ var p = decade.split(","); parts.push("year:["+p[0]+" TO "+p[1]+"]"); }
+  else parts.push("year:[* TO 2026]");
+  if(state.lib.topic){ parts.push(state.lib.topic); }
+  else if(state.lib.q){
+    var safe = state.lib.q.replace(/["\\]/g," ").trim();
+    if(safe) parts.push("(title:("+safe+") OR description:("+safe+") OR creator:("+safe+"))");
+  }
+  return parts.join(" AND ");
+}
+function loadLib(reset){
+  if(state.lib.loading) return;
+  state.lib.loading = true;
+  if(reset){ state.lib.page = 0; $("grid").innerHTML=""; $("libEmpty").innerHTML=""; }
+  $("libCount").textContent = "Searching the Archive…";
+  var sort = $("sort").value || null;
+  iaSearch(buildLibQuery(), { rows:24, page:state.lib.page, sort:sort }).then(function(res){
+    state.lib.total = res.total;
+    res.docs.forEach(function(d){ docCache.set(d.identifier, d); });
+    if(reset && !res.docs.length){
+      $("libEmpty").innerHTML = '<div class="empty">Nothing in the Archive matches that.<br />Try fewer words, a different spelling, or one of the topics above.</div>';
+      $("libCount").textContent = "0 results";
+    } else {
+      $("grid").insertAdjacentHTML("beforeend", res.docs.map(cardHTML).join(""));
+      bindCards($("grid"));
+      $("libCount").textContent = fmtInt(res.total)+" titles in the Archive";
+    }
+    $("moreBtn").hidden = !(res.docs.length===24 && (state.lib.page+1)*24 < res.total);
+    state.lib.loading = false;
+  }).catch(function(){
+    state.lib.loading = false;
+    $("libCount").textContent = "";
+    $("libEmpty").innerHTML = '<div class="empty">The Archive search did not answer just now. Check your connection and try again.</div>';
+  });
+}
+function setLibTitle(){
+  if(state.lib.topicLabel) $("libTitle").textContent = state.lib.topicLabel;
+  else if(state.lib.q) $("libTitle").textContent = "Results for “"+state.lib.q+"”";
+  else $("libTitle").textContent = "Most watched";
+}
+function renderChips(){
+  var box = $("chips");
+  var html = '<button type="button" class="chip" data-topic="" aria-pressed="true">All titles</button>';
+  html += TOPICS.map(function(t,i){ return '<button type="button" class="chip" data-topic="'+i+'" aria-pressed="false">'+esc(t.label)+'</button>'; }).join("");
+  box.innerHTML = html;
+  Array.prototype.forEach.call(box.querySelectorAll(".chip"), function(chip){
+    chip.addEventListener("click", function(){
+      Array.prototype.forEach.call(box.querySelectorAll(".chip"), function(c){ c.setAttribute("aria-pressed","false"); });
+      chip.setAttribute("aria-pressed","true");
+      var t = chip.getAttribute("data-topic");
+      if(t===""){ state.lib.topic = null; state.lib.topicLabel = null; }
+      else { state.lib.topic = TOPICS[Number(t)].q; state.lib.topicLabel = TOPICS[Number(t)].label; }
+      setLibTitle(); loadLib(true);
+    });
+  });
+}
+
+/* ---------- year chooser (TV only) ---------- */
+function renderYearOptions(){
+  var sel = $("tvYear");
+  if(!sel) return;
+  var thisYear = new Date().getFullYear();
+  var html = '<option value="">All years</option>';
+  for(var y = thisYear; y >= 1900; y--){
+    html += '<option value="' + y + '"' + (state.yearFilter === y ? ' selected' : '') + '>' + y + '</option>';
+  }
+  sel.innerHTML = html;
+  if(state.yearFilter) sel.value = String(state.yearFilter);
+}
+function refreshSchedules(){
+  var order = CHANNELS.map(function(_, i){ return i; }), cursor = 0;
+  function worker(){
+    if(cursor >= order.length){ renderRailNow(); renderGuide(); renderDirectoryNow(); return; }
+    var idx = order[cursor++];
+    loadPlaylist(idx).then(function(){ renderRailNow(); renderGuide(); renderDirectoryNow(); worker(); });
+  }
+  worker(); worker(); worker();
+}
+function setYearFilter(value){
+  state.yearFilter = value ? Number(value) : null;
+  state.playlists = {};
+  state.dirCounts = {};
+  renderDirectoryNow();
+  loadDirCounts();
+  var wrap = $("deckYear"), status = $("tvYearStatus");
+  if(wrap) wrap.classList.toggle("active", !!state.yearFilter);
+  if(status) status.textContent = state.yearFilter ? ("Only " + state.yearFilter + " playing") : "All years playing";
+  /* Reset the on-now labels until the filtered schedules arrive */
+  CHANNELS.forEach(function(ch, i){
+    var el = document.querySelector('[data-now-for="' + i + '"]');
+    if(el) el.textContent = "Loading…";
+  });
+  var guideBox = $("guideBox");
+  if(guideBox) guideBox.innerHTML = '<div class="guide-loading">Loading the schedule' + (state.yearFilter ? " for " + state.yearFilter : "") + ' from the Archive…</div>';
+  refreshSchedules();
+  if(state.mode === "channel" && state.channel >= 0){
+    tuneChannel(state.channel);
+  }
+}
+
+/* ---------- wiring ---------- */
+/* Top nav dropdown: keeps Watch / Channels / Directory / Guide / Library on screen */
+(function(){
+  var toggle = $("navToggle"), menu = $("navMenu"), wrap = $("navDropdown");
+  if(!toggle || !menu || !wrap) return;
+  function closeNav(){ menu.classList.remove("open"); toggle.setAttribute("aria-expanded","false"); }
+  function openNav(){ menu.classList.add("open"); toggle.setAttribute("aria-expanded","true"); }
+  toggle.addEventListener("click", function(e){
+    e.stopPropagation();
+    if(menu.classList.contains("open")) closeNav(); else openNav();
+  });
+  menu.addEventListener("click", function(e){ if(e.target.closest && e.target.closest("a")) closeNav(); });
+  document.addEventListener("click", function(e){ if(!wrap.contains(e.target)) closeNav(); });
+  document.addEventListener("keydown", function(e){ if(e.key==="Escape"){ closeNav(); toggle.focus(); } });
+})();
+
+function tickClock(){
+  var d = new Date();
+  $("clock").textContent = d.toLocaleDateString("en-US",{weekday:"short", month:"short", day:"numeric"})+" · "+d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",second:"2-digit"});
+}
+setInterval(tickClock, 1000); tickClock();
+
+var lastSlot = slotIndex();
+setInterval(function(){
+  if(slotIndex()!==lastSlot){
+    lastSlot = slotIndex();
+    renderRailNow(); renderGuide(); renderDirectoryNow();
+    if(state.mode==="channel" && state.channel>=0){
+      var v = $("stage").querySelector("video");
+      if(!v){ tuneChannel(state.channel); }
+    }
+  }
+}, 15000);
+
+$("tvYear").addEventListener("change", function(){ setYearFilter(this.value); });
+$("tuneInBtn").addEventListener("click", function(){ tuneChannel(Math.floor(Math.random()*CHANNELS.length)); });
+$("playPauseBtn").addEventListener("click", togglePlayPause);
+$("chUp").addEventListener("click", function(){ tuneChannel(state.channel<0?0:state.channel+1); });
+$("chDown").addEventListener("click", function(){ tuneChannel(state.channel<0?CHANNELS.length-1:state.channel-1); });
+$("favBtn").addEventListener("click", function(){
+  var doc = state.current; if(!doc) return;
+  if(state.favs.has(doc.identifier)) state.favs.delete(doc.identifier); else state.favs.set(doc.identifier, doc);
+  docCache.set(doc.identifier, doc);
+  syncFavBtn(); renderFavs();
+});
+$("searchForm").addEventListener("submit", function(e){
+  e.preventDefault();
+  state.lib.q = $("q").value.trim();
+  setLibTitle(); loadLib(true);
+});
+$("decade").addEventListener("change", function(){ loadLib(true); });
+$("sort").addEventListener("change", function(){ loadLib(true); });
+$("moreBtn").addEventListener("click", function(){ state.lib.page++; loadLib(false); });
+
+document.addEventListener("keydown", function(e){
+  var tag = (e.target && e.target.tagName)||"";
+  var typing = tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT";
+  if(e.key==="/" && !typing){ e.preventDefault(); $("q").focus(); $("library").scrollIntoView({behavior:"smooth"}); return; }
+  if(typing) return;
+  if((e.key===" " || e.code==="Space") && tag!=="BUTTON" && tag!=="A"){ e.preventDefault(); togglePlayPause(); }
+  else if(e.key==="ArrowUp"){ e.preventDefault(); tuneChannel(state.channel<0?0:state.channel+1); }
+  else if(e.key==="ArrowDown"){ e.preventDefault(); tuneChannel(state.channel<0?CHANNELS.length-1:state.channel-1); }
+  else if(e.key==="ArrowRight"){ advance(); }
+  else if(e.key==="ArrowLeft"){
+    if(state.mode==="channel" && state.channel>=0){
+      var list = state.playlists[state.channel]||[];
+      if(list.length){ var prev=(state.pos-1+list.length)%list.length; playDoc(list[prev], {channel:state.channel, pos:prev}); }
+    }
+  }
+  else if(e.key.toLowerCase()==="g"){ $("guide").scrollIntoView({behavior:"smooth"}); }
+});
+
+/* ---------- boot ---------- */
+renderRail();
+renderDirectory();
+loadDirCounts();
+renderDeck();
+renderYearOptions();
+syncPlayUI();
+renderChips();
+loadLib(true);
+iaSearch("mediatype:movies AND year:[* TO 2026]", { rows:1 }).then(function(res){
+  if(res.total) $("statTitles").textContent = fmtInt(res.total);
+}).catch(function(){});
+/* Load every channel schedule in the background, a few at a time */
+refreshSchedules();
+})();
+</script>
+</body>
+</html>
