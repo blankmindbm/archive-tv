@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Retro TV, amber on navy, matching the Archive TV icon design -->
+    <path
+        android:fillColor="#FFB347"
+        android:pathData="M38,14 L52,30"
+        android:strokeColor="#FFB347"
+        android:strokeWidth="4"
+        android:strokeLineCap="round" />
+    <path
+        android:fillColor="#FFB347"
+        android:pathData="M70,14 L56,30"
+        android:strokeColor="#FFB347"
+        android:strokeWidth="4"
+        android:strokeLineCap="round" />
+    <path
+        android:fillColor="#FFB347"
+        android:pathData="M38,14 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+    <path
+        android:fillColor="#FFB347"
+        android:pathData="M70,14 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+    <!-- TV body -->
+    <path
+        android:fillColor="#23235E"
+        android:strokeColor="#FFB347"
+        android:strokeWidth="3"
+        android:pathData="M26,30 H82 A8,8 0 0,1 90,38 V76 A8,8 0 0,1 82,84 H26 A8,8 0 0,1 18,76 V38 A8,8 0 0,1 26,30 Z" />
+    <!-- Screen, amber glow -->
+    <path
+        android:fillColor="#FFB347"
+        android:pathData="M32,38 H76 A6,6 0 0,1 82,44 V62 A6,6 0 0,1 76,68 H32 A6,6 0 0,1 26,62 V44 A6,6 0 0,1 32,38 Z" />
+    <!-- Play triangle -->
+    <path
+        android:fillColor="#14143D"
+        android:pathData="M47,46 L47,62 L64,54 Z" />
+    <!-- Knobs -->
+    <path
+        android:fillColor="#FFB347"
+        android:pathData="M30,76 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+    <path
+        android:fillColor="#FFB347"
+        android:pathData="M41,76 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+    <!-- Film reel -->
+    <path
+        android:fillColor="#FFB347"
+        android:pathData="M84,28 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0" />
+    <path
+        android:fillColor="#14143D"
+        android:pathData="M84,28 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+</vector>
