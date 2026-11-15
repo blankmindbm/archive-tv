@@ -1,0 +1,50 @@
+name: Build APK
+
+# Build the debug APK in the cloud, with no Android Studio needed.
+# Run it by pushing this project to GitHub, then opening the Actions tab.
+# It uses a pinned system Gradle install, not ./gradlew, because this
+# project does not include gradle-wrapper.jar yet.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Do not use android-actions/setup-android here. Version 3 fails on
+      # current runners because it tries to install the obsolete
+      # sdkmanager "tools" package, which no longer exists.
+      # ubuntu-latest already ships an Android SDK, so just install
+      # the platform and build tools we need from it.
+      - name: Install Android platform 34 and build tools
+        run: |
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          echo "Using $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build debug APK
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-tv-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
