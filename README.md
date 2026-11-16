@@ -21,7 +21,9 @@ The app is a WebView wrapper around the same `index.html`, bundled as `app/src/m
 
 Build it with GitHub Actions, no Android Studio needed. See `GITHUB_BUILD.md` for the exact steps. The workflow builds a debug APK named `archive-tv-debug-apk`.
 
-Package: `com.archivetv.app`, version 1.8 (versionCode 9).
+Package: `com.archivetv.app`, version 1.9 (versionCode 10).
 
 Picture-in-Picture: tap PiP in the TV deck, or press Home while a video is playing, and the video keeps playing in a floating window.
 Build: Gradle 8.7, JDK 17 Temurin, Android platform 34, build-tools 34.0.0.
+
+Release signing: v1.9 and later are signed with one persistent release keystore (PKCS12, alias archive-tv), stored as a GitHub Actions secret. That is why updates install over the old app. The keystore backup is kept outside the repo; if it is lost, future updates will need another uninstall.

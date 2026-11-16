@@ -4,3 +4,7 @@ local.properties
 .idea/
 app/build/
 build/
+*.keystore
+*.jks
+*.p12
+release.keystore
