@@ -1,6 +1,6 @@
 # Archive TV
 
-A live TV site built from Archive.org, as an Android app and as a website.
+A live TV app built from Archive.org, as an Android app and as a website.
 
 13 live channels on a shared half-hour clock, so you tune in mid-show like real TV:
 02 Saturday Morning
