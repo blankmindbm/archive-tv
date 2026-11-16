@@ -2,8 +2,10 @@
 
 A Spelunkr-style live TV site built from Archive.org, as an Android app and as a website.
 
-13 live channels on a shared half-hour clock, so you tune in mid-show like real TV:
-02 Saturday Morning, 03 Feature Films, 04 Noir, 05 Sci-Fi Theater, 06 Horror After Dark, 07 Prelinger, 08 Newsreel Room, 09 Computer Chronicles, 10 Silent Era, 11 NASA and Space, 12 Commercial Break, 13 VHS Vault, 14 Fresh and Recent.
+15 live channels on a shared half-hour clock, so you tune in mid-show like real TV:
+02 Cartoons, 03 Comedy, 04 Commercials, 05 Drama, 06 Gameshows, 07 Kids, 08 Movies, 09 Music, 10 News, 11 Other, 12 Soaps, 13 Specials, 14 Sports, 15 Talkshows, 16 Trailers.
+
+Each channel mixes Archive.org titles with YouTube videos for that station, found via YouTube search. YouTube videos play in a YouTube embed. If YouTube search is blocked, the channel falls back to Archive.org only.
 
 Plus a searchable library over about 14,022,379 Archive.org titles through 2026, a year chooser in the TV deck (All years, or a specific year from 1900 to today), a Directory listing every channel in dial order with what is playing now, a guide, and a retro TV control deck under the video with play/pause, CH minus/plus, and small channel buttons.
 
@@ -19,7 +21,7 @@ The app is a WebView wrapper around the same `index.html`, bundled as `app/src/m
 
 Build it with GitHub Actions, no Android Studio needed. See `GITHUB_BUILD.md` for the exact steps. The workflow builds a debug APK named `archive-tv-debug-apk`.
 
-Package: `com.archivetv.app`, version 1.3 (versionCode 4).
+Package: `com.archivetv.app`, version 1.4 (versionCode 5).
 
 Picture-in-Picture: tap PiP in the TV deck, or press Home while a video is playing, and the video keeps playing in a floating window.
 Build: Gradle 8.7, JDK 17 Temurin, Android platform 34, build-tools 34.0.0.

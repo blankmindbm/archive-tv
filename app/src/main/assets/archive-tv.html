@@ -366,7 +366,7 @@
 
       <div class="stats" aria-label="Archive at a glance">
         <div class="stat"><div class="v" id="statTitles">14,022,379</div><div class="k">Films &amp; TV · all years</div></div>
-        <div class="stat"><div class="v">13</div><div class="k">Channels, always on</div></div>
+        <div class="stat"><div class="v">15</div><div class="k">Channels, always on</div></div>
         <div class="stat"><div class="v">126<span style="font-size:.55em; font-weight:800;">yrs</span></div><div class="k">Of footage, 1900 to today</div></div>
         <div class="stat"><div class="v">$0</div><div class="k">No account, no ads</div></div>
       </div>
@@ -486,22 +486,24 @@
 "use strict";
 var SLOT = 1800; /* 30-minute programming blocks, aligned to the epoch */
 var API = "https://archive.org/advancedsearch.php";
-var FIELDS = ["identifier","title","year","creator","description","downloads"];
+var FIELDS = ["identifier","title","year","creator","description","downloads","runtime"];
 
 var CHANNELS = [
-  { num:"02", name:"Saturday Morning", desc:"Classic cartoons and animation, from Popeye to public-domain oddities.", q:"(collection:classic_cartoons OR collection:animationandcartoons) AND mediatype:movies AND year:[* TO 2026]" },
-  { num:"03", name:"Feature Films", desc:"Golden-age Hollywood features, 1930s through the 1960s.", q:"collection:feature_films AND mediatype:movies AND year:[1930 TO 1969]" },
-  { num:"04", name:"Noir", desc:"Film noir and crime: shadows, dames, and double-crosses.", q:"subject:\"film noir\" AND mediatype:movies AND year:[* TO 2026]" },
-  { num:"05", name:"Sci-Fi Theater", desc:"Science fiction features, rocket ships to rubber monsters.", q:"subject:\"science fiction\" AND mediatype:movies AND year:[* TO 2026]" },
-  { num:"06", name:"Horror After Dark", desc:"Horror features and creature shocks from the vault.", q:"subject:horror AND mediatype:movies AND year:[* TO 2026]" },
-  { num:"07", name:"Prelinger", desc:"The Prelinger Archives: ads, school films, and mid-century Americana.", q:"collection:prelinger AND mediatype:movies AND year:[* TO 2026]" },
-  { num:"08", name:"Newsreel Room", desc:"Universal Newsreels: the week's history, as theaters saw it.", q:"collection:universal_newsreels AND mediatype:movies AND year:[* TO 2026]" },
-  { num:"09", name:"Computer Chronicles", desc:"The classic PBS tech show, chronicling the PC revolution as it happened.", q:"title:\"Computer Chronicles\" AND mediatype:movies AND year:[* TO 2026]" },
-  { num:"10", name:"Silent Era", desc:"Features from 1900 to 1929, before talkies took over.", q:"collection:feature_films AND mediatype:movies AND year:[1900 TO 1929]" },
-  { num:"11", name:"NASA & Space", desc:"Space agency film: Apollo, shuttle, and the science in between.", q:"collection:nasa AND mediatype:movies AND year:[* TO 2026]" },
-  { num:"12", name:"Commercial Break", desc:"Decades of television commercials, jingles and all.", q:"subject:\"television commercials\" AND mediatype:movies AND year:[* TO 2026]" },
-  { num:"13", name:"VHS Vault", desc:"Off-air VHS recordings: broadcasts, promos, and late-night TV as taped.", q:"collection:vhscommercials AND mediatype:movies AND year:[* TO 2026]" },
-  { num:"14", name:"Fresh & Recent", desc:"Broadcasts, talks, and uploads from 2015 to today, the newest side of the Archive.", q:"mediatype:movies AND year:[2015 TO 2026]" }
+  { num:"02", name:"Cartoons", desc:"Classic cartoons and animation, from Popeye to public-domain oddities.", q:"(collection:classic_cartoons OR collection:animationandcartoons) AND mediatype:movies AND year:[* TO 2026]", yt:"classic cartoons popeye" },
+  { num:"03", name:"Comedy", desc:"Comedy features and shorts: laughs from the vault.", q:"subject:comedy AND mediatype:movies AND year:[* TO 2026]", yt:"classic comedy movies full" },
+  { num:"04", name:"Commercials", desc:"Decades of television commercials, jingles and all.", q:"(collection:vhscommercials OR subject:\"television commercials\") AND mediatype:movies AND year:[* TO 2026]", yt:"vintage tv commercials" },
+  { num:"05", name:"Drama", desc:"Drama features: golden-age Hollywood and beyond.", q:"subject:drama AND mediatype:movies AND year:[* TO 2026]", yt:"classic drama movies full" },
+  { num:"06", name:"Gameshows", desc:"Game shows: contestants, prizes, and studio lights.", q:"subject:\"game show\" AND mediatype:movies AND year:[* TO 2026]", yt:"classic game show full episode" },
+  { num:"07", name:"Kids", desc:"For the kids: family films, cartoons, and children's shows.", q:"subject:children AND mediatype:movies AND year:[* TO 2026]", yt:"kids cartoons full episodes" },
+  { num:"08", name:"Movies", desc:"Feature films, 1900 to today.", q:"collection:feature_films AND mediatype:movies AND year:[* TO 2026]", yt:"classic movies full free" },
+  { num:"09", name:"Music", desc:"Music films, concerts, and musicals.", q:"subject:music AND mediatype:movies AND year:[* TO 2026]", yt:"classic music concert full" },
+  { num:"10", name:"News", desc:"Newsreels: the week's history, as theaters saw it.", q:"collection:universal_newsreels AND mediatype:movies AND year:[* TO 2026]", yt:"vintage newsreel" },
+  { num:"11", name:"Other", desc:"Everything else in the Archive: the catch-all channel.", q:"mediatype:movies AND year:[* TO 2026]", yt:"archive.org movies" },
+  { num:"12", name:"Soaps", desc:"Soap operas and daytime drama.", q:"subject:\"soap opera\" AND mediatype:movies AND year:[* TO 2026]", yt:"classic soap opera full episode" },
+  { num:"13", name:"Specials", desc:"Specials: holiday, variety, and one-off broadcasts.", q:"subject:special AND mediatype:movies AND year:[* TO 2026]", yt:"classic tv special" },
+  { num:"14", name:"Sports", desc:"Sports films and broadcasts, from the vault.", q:"subject:sports AND mediatype:movies AND year:[* TO 2026]", yt:"classic sports full game" },
+  { num:"15", name:"Talkshows", desc:"Talk shows: interviews and late-night chat.", q:"subject:\"talk show\" AND mediatype:movies AND year:[* TO 2026]", yt:"classic talk show full episode" },
+  { num:"16", name:"Trailers", desc:"Trailers only: coming attractions from the vault, old and new.", q:"collection:movie_trailers AND mediatype:movies AND year:[* TO 2026]", yt:"classic movie trailers" }
 ];
 
 var TOPICS = [
@@ -539,7 +541,7 @@ function cleanDesc(d){
 function slotIndex(){ return Math.floor(Date.now()/1000/SLOT); }
 function slotStartTime(k){ return new Date((slotIndex()+k)*SLOT*1000); }
 function fmtTime(d){ return d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}); }
-function thumb(id){ return "https://archive.org/services/img/"+encodeURIComponent(id); }
+function thumb(id){ if(id && id.indexOf("yt:")===0) return "https://i.ytimg.com/vi/"+encodeURIComponent(id.slice(3))+"/hqdefault.jpg"; return "https://archive.org/services/img/"+encodeURIComponent(id); }
 
 function iaSearch(q, opts){
   opts = opts||{};
@@ -569,12 +571,67 @@ function channelQuery(idx){
   if(!state.yearFilter) return CHANNELS[idx].q;
   return "(" + CHANNELS[idx].q + ") AND year:" + state.yearFilter;
 }
+
+/* ---------- Shorts: anything under 30 seconds lives here ---------- */
+function parseRuntime(rt){
+  if(!rt) return null;
+  var parts = String(rt).trim().split(":");
+  var s = 0;
+  for(var i=0;i<parts.length;i++){ var n = parseFloat(parts[i]); if(isNaN(n)) return null; s = s*60 + n; }
+  return s;
+}
+function shortsIndex(){ for(var i=0;i<CHANNELS.length;i++){ if(CHANNELS[i].name==="Shorts") return i; } return -1; }
+function trailersIndex(){ for(var i=0;i<CHANNELS.length;i++){ if(CHANNELS[i].name==="Movie Trailers") return i; } return -1; }
+function loadShorts(){
+  var seen = {}, out = [];
+  try{
+    var saved = JSON.parse(localStorage.getItem("archiveTV.shorts")||"[]");
+    saved.forEach(function(d){ if(d && d.identifier && !seen[d.identifier]){ seen[d.identifier]=1; out.push(d); } });
+  }catch(e){}
+  (state.shorts||[]).forEach(function(d){ if(d && d.identifier && !seen[d.identifier]){ seen[d.identifier]=1; out.push(d); } });
+  return out;
+}
+function stashShort(doc){
+  if(!doc || !doc.identifier) return;
+  state.shorts = state.shorts||[];
+  if(state.shorts.some(function(d){ return d.identifier===doc.identifier; })) return;
+  state.shorts.push(doc);
+  try{
+    var saved = JSON.parse(localStorage.getItem("archiveTV.shorts")||"[]");
+    saved.push(doc);
+    localStorage.setItem("archiveTV.shorts", JSON.stringify(saved.slice(-200)));
+  }catch(e){}
+  var si = shortsIndex();
+  if(si>=0 && state.playlists[si]){ state.playlists[si] = loadShorts(); }
+}
 function loadPlaylist(idx){
   if(state.playlists[idx]) return Promise.resolve(state.playlists[idx]);
+  if(idx===shortsIndex()){
+    return iaSearch(channelQuery(idx), { rows:48, sort:"downloads desc" }).then(function(res){
+      var docs = (res.docs||[]).filter(function(d){ var s = parseRuntime(d.runtime); return s!==null && s<30; });
+      var all = loadShorts().concat(docs);
+      var seen = {}, uniq = [];
+      all.forEach(function(d){ if(d && d.identifier && !seen[d.identifier]){ seen[d.identifier]=1; uniq.push(d); } });
+      var list = seededShuffle(uniq, idx+7);
+      state.playlists[idx] = list;
+      return list;
+    }).catch(function(){ var list = loadShorts(); state.playlists[idx] = list; return list; });
+  }
+  var ch = CHANNELS[idx];
   return iaSearch(channelQuery(idx), { rows:48, sort:"downloads desc" }).then(function(res){
-    var docs = seededShuffle(res.docs, idx+7);
-    state.playlists[idx] = docs;
-    return docs;
+    var docs = res.docs||[];
+    var ytQ = ch.yt ? ch.yt + (state.yearFilter ? " " + state.yearFilter : "") : null;
+    if(!ytQ) { var list0 = seededShuffle(docs, idx+7); state.playlists[idx] = list0; return list0; }
+    return ytSearch(ytQ).then(function(ytDocs){
+      var all = docs.concat(ytDocs);
+      var list = seededShuffle(all, idx+7);
+      state.playlists[idx] = list;
+      return list;
+    }).catch(function(){
+      var list2 = seededShuffle(docs, idx+7);
+      state.playlists[idx] = list2;
+      return list2;
+    });
   }).catch(function(){ state.playlists[idx] = []; return []; });
 }
 
@@ -676,6 +733,48 @@ function setStageLoading(title){
   var icon = $("playPauseIcon"); if(icon) icon.innerHTML = ICON_PLAY;
 }
 
+
+/* ---------- YouTube (Innertube, no API key) ---------- */
+/* YouTube's own web search API, used by youtube.com itself. No key is
+   issued to us, the public web client key is used. It can break or be
+   blocked, so a failure just falls back to Archive.org only. */
+function ytSearch(query){
+  var payload = { context:{ client:{ clientName:"WEB", clientVersion:"2.20240111.09.00" } }, query: query };
+  return fetch("https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8", {
+    method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload)
+  }).then(function(r){ if(!r.ok) throw new Error("yt "+r.status); return r.json(); }).then(function(j){
+    var out = [];
+    (function walk(o){
+      if(!o || out.length>=12) return;
+      if(Array.isArray(o)){ o.forEach(walk); return; }
+      if(typeof o!=="object") return;
+      if(o.videoRenderer){
+        var vr = o.videoRenderer, id = vr.videoId;
+        var title = vr.title && vr.title.runs ? vr.title.runs.map(function(x){ return x.text; }).join("") : (vr.title && vr.title.simpleText ? vr.title.simpleText : "");
+        var ch = vr.longBylineText && vr.longBylineText.runs ? vr.longBylineText.runs.map(function(x){ return x.text; }).join("") : "";
+        if(id && title) out.push({ identifier:"yt:"+id, title:title, creator:ch, year:"", ytId:id, source:"youtube", downloads:0 });
+        return;
+      }
+      Object.keys(o).forEach(function(k){ walk(o[k]); });
+    })(j);
+    return out;
+  });
+}
+function playYouTube(doc){
+  embedPausedDoc = null;
+  state.current = doc;
+  updateNowPanel(doc);
+  markActiveChannel();
+  var stage = $("stage");
+  stage.innerHTML = "";
+  var f = document.createElement("iframe");
+  f.src = "https://www.youtube-nocookie.com/embed/"+encodeURIComponent(doc.ytId)+"?autoplay=1&rel=0";
+  f.allow = "autoplay; fullscreen; picture-in-picture";
+  f.allowFullscreen = true;
+  f.title = doc.title||"YouTube video";
+  stage.appendChild(f);
+  setPlayUI(true, "LIVE"); syncLed();
+}
 function playDoc(doc, opts){
   opts = opts||{};
   embedPausedDoc = null;
@@ -685,6 +784,7 @@ function playDoc(doc, opts){
   if(opts.pos!=null){ state.pos = opts.pos; }
   updateNowPanel(doc);
   markActiveChannel();
+  if(doc.ytId){ playYouTube(doc); return; }
   setStageLoading(doc.title);
   var seek = opts.seek||0;
   fetch("https://archive.org/metadata/"+encodeURIComponent(doc.identifier))
@@ -693,6 +793,17 @@ function playDoc(doc, opts){
       var files = meta && meta.files;
       var pick = pickStream(files);
       if(!pick) throw new Error("no mp4");
+      var len = pick.length ? parseFloat(pick.length) : null;
+      if(len!==null && len<30 && opts.channel!=null && shortsIndex()>=0 && opts.channel!==shortsIndex()){
+        stashShort(doc);
+        /* Short clip: move it to the Shorts station instead of playing it here */
+        state.shortSkips = (state.shortSkips||0)+1;
+        if(state.shortSkips>10){ $("stage").innerHTML = '<div class="standby"><div class="big">Shorts only.</div><p class="sub">This channel is all clips under 30 seconds right now. Try CH 15 Shorts, or another channel.</p></div>'; return; }
+        var l2 = state.playlists[opts.channel]||[];
+        if(l2.length){ var nx = ((opts.pos||0)+1)%l2.length; playDoc(l2[nx], { channel:opts.channel, pos:nx, seek:0 }); return; }
+        return;
+      }
+      state.shortSkips = 0;
       var src = "https://archive.org/download/"+encodeURIComponent(doc.identifier)+"/"+encodeURIComponent(pick.name);
       var stage = $("stage");
       stage.innerHTML = "";
@@ -768,8 +879,14 @@ function updateNowPanel(doc){
   $("nowYear").textContent = doc.year ? "Year " + doc.year : "";
   $("nowBy").textContent = doc.creator ? String(doc.creator).slice(0,80) : "";
   var d = cleanDesc(doc.description);
-  $("nowDesc").textContent = d || "No description in the Archive record for this title.";
-  $("archiveLink").href = "https://archive.org/details/"+encodeURIComponent(doc.identifier);
+  $("nowDesc").textContent = d || (doc.ytId ? "YouTube video." : "No description in the Archive record for this title.");
+  if(doc.ytId){
+    $("archiveLink").href = "https://www.youtube.com/watch?v="+encodeURIComponent(doc.ytId);
+    $("archiveLink").textContent = "Watch on YouTube";
+  } else {
+    $("archiveLink").href = "https://archive.org/details/"+encodeURIComponent(doc.identifier);
+    $("archiveLink").textContent = "View on Archive.org";
+  }
   if(state.channel>=0 && state.mode==="channel"){
     $("dialNum").textContent = CHANNELS[state.channel].num;
     var into = Math.floor((Date.now()/1000) % SLOT);
