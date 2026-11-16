@@ -2,9 +2,11 @@ name: Release APK
 
 # Publish the debug APK as a GitHub Release, no manual download needed.
 # Add this file on github.com, then run it from the Actions tab.
-# It builds the APK and attaches app-debug.apk to release v1.5.
+# It builds the APK and attaches app-debug.apk to release v1.6.
+
 on:
   workflow_dispatch:
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -28,12 +30,12 @@ jobs:
           gradle-version: "8.7"
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
-      - name: Rename APK to Archive-TV-v1.5.apk
-        run: cp app/build/outputs/apk/debug/app-debug.apk Archive-TV-v1.5.apk
-      - name: Create release v1.5 with APK
+      - name: Rename APK to Archive-TV-v1.6.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Archive-TV-v1.6.apk
+      - name: Create release v1.6 with APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.5
-          name: Archive TV v1.5
-          body: Archive TV v1.5, package com.archivetv.app, with an adult-content filter on every channel.
-          files: Archive-TV-v1.5.apk
+          tag_name: v1.6
+          name: Archive TV v1.6
+          body: Archive TV v1.6, package com.archivetv.app, with English-only videos on every channel.
+          files: Archive-TV-v1.6.apk
