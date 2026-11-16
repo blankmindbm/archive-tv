@@ -492,7 +492,7 @@
 (function(){
 "use strict";
 var SLOT = 1800; /* 30-minute programming blocks, aligned to the epoch */
-var APP_VERSION = "1.9";
+var APP_VERSION = "1.10";
 function cmpVer(a, b){
   var pa = String(a||"").replace(/^v/,"").split("."), pb = String(b||"").replace(/^v/,"").split(".");
   for(var i=0;i<Math.max(pa.length,pb.length);i++){
@@ -551,7 +551,7 @@ var CHANNELS = [
   { num:"06", name:"Gameshows", desc:"Game shows: contestants, prizes, and studio lights.", q:"subject:\"game show\" AND mediatype:movies AND year:[* TO 2026]", yt:"classic game show full episode" },
   { num:"07", name:"Kids", desc:"For the kids: cartoons, puppet shows, and educational shows for children.", q:"(subject:children OR subject:kids) AND (subject:animated OR subject:animation OR subject:cartoon OR subject:cartoons OR subject:puppet OR subject:educational) AND mediatype:movies AND year:[* TO 2026]", yt:"kids cartoons full episodes" },
   { num:"08", name:"Movies", desc:"Feature films, 1900 to today.", q:"collection:feature_films AND mediatype:movies AND year:[* TO 2026]", yt:"classic movies full free" },
-  { num:"09", name:"Music", desc:"Music films, concerts, and musicals.", q:"subject:music AND mediatype:movies AND year:[* TO 2026]", yt:"classic music concert full" },
+  { num:"09", name:"Music", desc:"Music films, concerts, and musicals.", q:"subject:music AND NOT subject:religion AND NOT subject:bible AND NOT subject:church AND NOT subject:christianity AND NOT subject:sermon AND NOT subject:ministry AND NOT subject:preaching AND NOT subject:jesus AND NOT subject:god AND NOT subject:prayer AND NOT subject:worship AND mediatype:movies AND year:[* TO 2026]", yt:"classic music concert full" },
   { num:"10", name:"News", desc:"Newsreels: the week's history, as theaters saw it.", q:"collection:universal_newsreels AND mediatype:movies AND year:[* TO 2026]", yt:"vintage newsreel" },
   { num:"11", name:"Other", desc:"Everything else in the Archive: the catch-all channel.", q:"mediatype:movies AND year:[* TO 2026]", yt:"archive.org movies" },
   { num:"12", name:"Soaps", desc:"Soap operas and daytime drama.", q:"subject:\"soap opera\" AND mediatype:movies AND year:[* TO 2026]", yt:"classic soap opera full episode" },
@@ -649,6 +649,16 @@ function isEnglishDoc(d){
   if(/[\u0400-\u04FF\u0600-\u06FF\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(title)) return false;
   return true;
 }
+/* Music channel only: drop sermons, Bible studies and church talks that carry
+   a junk "Music" subject tag (e.g. Sdbiblestudy-Church-Library, dated 2026,
+   which played on Music in year 2026 mode). Other channels are untouched. */
+function isReligiousTalkDoc(d, idx){
+  if(!d || !CHANNELS[idx] || CHANNELS[idx].name !== "Music") return false;
+  var subs = d.subject;
+  if(Array.isArray(subs)){ for(var i=0;i<subs.length;i++){ if(/religion|bible|church|christianity|sermon|ministry|preaching|jesus|god|prayer|worship/i.test(String(subs[i]))) return true; } }
+  else if(typeof subs==="string" && /religion|bible|church|christianity|sermon|ministry|preaching|jesus|god|prayer|worship/i.test(subs)) return true;
+  return false;
+}
 function isAdultDoc(d){
   if(!d) return false;
   var hay = ((d.title||"") + " " + (d.description||"")).toLowerCase();
@@ -706,11 +716,11 @@ function loadPlaylist(idx){
   }
   var ch = CHANNELS[idx];
   return iaSearch(channelQuery(idx), { rows:48, sort:"downloads desc" }).then(function(res){
-    var docs = (res.docs||[]).filter(function(d){ return !isAdultDoc(d) && isEnglishDoc(d); });
+    var docs = (res.docs||[]).filter(function(d){ return !isAdultDoc(d) && isEnglishDoc(d) && !isReligiousTalkDoc(d, idx); });
     var ytQ = ch.yt ? ch.yt + (state.yearFilter ? " " + state.yearFilter : "") : null;
     if(!ytQ) { var list0 = seededShuffle(docs, idx+7); state.playlists[idx] = list0; return list0; }
     return ytSearch(ytQ).then(function(ytDocs){
-      var all = docs.concat((ytDocs||[]).filter(function(d){ return !isAdultDoc(d) && isEnglishDoc(d); }));
+      var all = docs.concat((ytDocs||[]).filter(function(d){ return !isAdultDoc(d) && isEnglishDoc(d) && !isReligiousTalkDoc(d, idx); }));
       var list = seededShuffle(all, idx+7);
       state.playlists[idx] = list;
       return list;
