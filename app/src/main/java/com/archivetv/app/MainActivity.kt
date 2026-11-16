@@ -1,11 +1,17 @@
 package com.archivetv.app
 
+import android.app.DownloadManager
 import android.app.PictureInPictureParams
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.Settings
 import android.util.Rational
 import android.view.View
 import android.view.ViewGroup
@@ -17,6 +23,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
+import java.io.File
 
 /**
  * Archive TV: a Spelunkr-style live TV player built from Archive.org.
@@ -24,8 +32,10 @@ import androidx.appcompat.app.AppCompatActivity
  * and loaded in a WebView. All videos still stream live from
  * archive.org at play time, nothing is hosted or copied.
  * 15 channels, year chooser, directory, guide, and searchable library.
- * Update check: the page checks GitHub releases and calls openUpdate()
- * to open the release page in the system browser for download.
+ * Update check: the page checks GitHub releases and calls
+ * downloadUpdate() to download the APK in-app and open the installer,
+ * so updates no longer need the browser. openUpdate() remains as the
+ * fallback and opens the release page in the system browser.
  *
  * Picture-in-Picture: the TV deck has a PiP button, and pressing Home
  * while a video is playing auto-enters PiP. The page hides everything
@@ -38,6 +48,12 @@ class MainActivity : AppCompatActivity() {
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
     @Volatile
     private var isVideoPlaying = false
+
+    private var updateDownloadId: Long = -1
+    private var pendingUpdateUrl: String? = null
+    private var pendingUpdateFileName: String? = null
+    private val installRequestCode = 9001
+    private var downloadReceiver: BroadcastReceiver? = null
 
     inner class WebAppInterface {
         @JavascriptInterface
@@ -60,6 +76,11 @@ class MainActivity : AppCompatActivity() {
                     // No browser available, stay in-app.
                 }
             }
+        }
+
+        @JavascriptInterface
+        fun downloadUpdate(url: String, fileName: String) {
+            runOnUiThread { startUpdateDownload(url, fileName) }
         }
     }
 
@@ -95,8 +116,132 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * In-app update: download the release APK with DownloadManager and
+     * open the installer when it finishes. On Android 8+ the app needs
+     * the per-app "install unknown apps" permission first; if it is not
+     * granted yet, Android settings are opened and the download resumes
+     * when the user comes back.
+     */
+    private fun startUpdateDownload(url: String, fileName: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !packageManager.canRequestPackageInstalls()
+        ) {
+            pendingUpdateUrl = url
+            pendingUpdateFileName = fileName
+            try {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:$packageName")
+                )
+                startActivityForResult(intent, installRequestCode)
+            } catch (_: Exception) {
+                // Settings unavailable; the update banner stays and the
+                // user can retry, falling back to the browser.
+                pendingUpdateUrl = null
+                pendingUpdateFileName = null
+            }
+            return
+        }
+        enqueueUpdateDownload(url, fileName)
+    }
+
+    private fun enqueueUpdateDownload(url: String, fileName: String) {
+        try {
+            val request = DownloadManager.Request(Uri.parse(url))
+                .setTitle("Archive TV update")
+                .setDescription("Downloading $fileName")
+                .setNotificationVisibility(
+                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                )
+                .setDestinationInExternalPublicDir(
+                    Environment.DIRECTORY_DOWNLOADS, fileName
+                )
+                .setMimeType("application/vnd.android.package-archive")
+            val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            updateDownloadId = dm.enqueue(request)
+        } catch (_: Exception) {
+            // Download could not start; the update banner stays and the
+            // user can retry from there.
+        }
+    }
+
+    private fun installDownloadedApk(downloadId: Long) {
+        try {
+            val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            dm.query(DownloadManager.Query().setFilterById(downloadId))?.use { c ->
+                if (!c.moveToFirst()) return
+                val status = c.getInt(
+                    c.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)
+                )
+                if (status != DownloadManager.STATUS_SUCCESSFUL) return
+                val localUri = Uri.parse(
+                    c.getString(
+                        c.getColumnIndexOrThrow(DownloadManager.COLUMN_LOCAL_URI)
+                    )
+                )
+                val file = File(localUri.path ?: return)
+                if (!file.exists()) return
+                val contentUri = FileProvider.getUriForFile(
+                    this, "$packageName.fileprovider", file
+                )
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(
+                        contentUri, "application/vnd.android.package-archive"
+                    )
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                }
+                startActivity(intent)
+            }
+        } catch (_: Exception) {
+            // Installer could not be opened; the APK stays in Downloads
+            // and the user can tap it there.
+        }
+    }
+
+    @Deprecated("Back handling for older Android versions")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == installRequestCode) {
+            val url = pendingUpdateUrl
+            val name = pendingUpdateFileName
+            pendingUpdateUrl = null
+            pendingUpdateFileName = null
+            if (url != null && name != null) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+                    packageManager.canRequestPackageInstalls()
+                ) {
+                    enqueueUpdateDownload(url, name)
+                }
+                // If still not granted, the user declined; the update
+                // banner stays and they can retry.
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        downloadReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == DownloadManager.ACTION_DOWNLOAD_COMPLETE) {
+                    val id = intent.getLongExtra(
+                        DownloadManager.EXTRA_DOWNLOAD_ID, -1
+                    )
+                    if (id == updateDownloadId) installDownloadedApk(id)
+                }
+            }
+        }
+        val downloadFilter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                downloadReceiver, downloadFilter, Context.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(downloadReceiver, downloadFilter)
+        }
 
         webView = WebView(this).apply {
             layoutParams = ViewGroup.LayoutParams(
@@ -224,7 +369,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        webView.destroy()
+        try {
+            downloadReceiver?.let { unregisterReceiver(it) }
+        } catch (_: Exception) {
+            // Receiver was never registered, or already unregistered.
+        }
+        if (::webView.isInitialized) webView.destroy()
         super.onDestroy()
     }
 }

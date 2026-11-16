@@ -500,7 +500,7 @@
 (function(){
 "use strict";
 var SLOT = 1800; /* 30-minute programming blocks, aligned to the epoch */
-var APP_VERSION = "1.15";
+var APP_VERSION = "1.16";
 function cmpVer(a, b){
   var pa = String(a||"").replace(/^v/,"").split("."), pb = String(b||"").replace(/^v/,"").split(".");
   for(var i=0;i<Math.max(pa.length,pb.length);i++){
@@ -514,10 +514,18 @@ function showUpdateBar(latest){
   bar.style.display = "flex";
   $("updateText").textContent = "Update available: Archive TV " + latest.tag_name + " (you have v" + APP_VERSION + ")";
   $("updateBtn").style.display = "";
+  var apk = null;
+  if(latest.assets){ for(var i=0;i<latest.assets.length;i++){ if(/\.apk$/i.test(latest.assets[i].name||"")){ apk = latest.assets[i]; break; } } }
   $("updateBtn").onclick = function(){
     var url = latest.html_url || "https://github.com/blankmindbm/archive-tv/releases/latest";
-    if(window.ArchiveTV && window.ArchiveTV.openUpdate) window.ArchiveTV.openUpdate(url);
-    else window.open(url, "_blank");
+    /* In-app update: the app downloads the APK and opens the installer
+       itself, no browser, no hunting for the file. Falls back to the
+       release page in a browser when the native bridge is not there. */
+    if(apk && window.ArchiveTV && typeof window.ArchiveTV.downloadUpdate === "function"){
+      window.ArchiveTV.downloadUpdate(apk.browser_download_url, apk.name);
+    } else if(window.ArchiveTV && window.ArchiveTV.openUpdate){
+      window.ArchiveTV.openUpdate(url);
+    } else window.open(url, "_blank");
   };
 }
 function checkForUpdate(manual){
@@ -892,7 +900,10 @@ function ytSearch(query){
         var vr = o.videoRenderer, id = vr.videoId;
         var title = vr.title && vr.title.runs ? vr.title.runs.map(function(x){ return x.text; }).join("") : (vr.title && vr.title.simpleText ? vr.title.simpleText : "");
         var ch = vr.longBylineText && vr.longBylineText.runs ? vr.longBylineText.runs.map(function(x){ return x.text; }).join("") : "";
-        if(id && title) out.push({ identifier:"yt:"+id, title:title, creator:ch, year:"", ytId:id, source:"youtube", downloads:0 });
+        var lenTxt = vr.lengthText && vr.lengthText.simpleText ? vr.lengthText.simpleText : "";
+        var secs = 0;
+        if(lenTxt){ var parts = lenTxt.split(":").map(function(x){ return parseInt(x,10)||0; }); while(parts.length<3) parts.unshift(0); secs = parts[0]*3600+parts[1]*60+parts[2]; }
+        if(id && title) out.push({ identifier:"yt:"+id, title:title, creator:ch, year:"", ytId:id, source:"youtube", downloads:0, ytLen: secs||null });
         return;
       }
       Object.keys(o).forEach(function(k){ walk(o[k]); });
@@ -900,24 +911,71 @@ function ytSearch(query){
     return out;
   });
 }
+/* ---------- YouTube end detection ----------
+   The plain nocookie embed never says when a video ends, so a YouTube
+   title used to sit on its end screen forever while Archive videos
+   advanced on their ended event. We use the YouTube IFrame API:
+   enablejsapi=1 plus a YT.Player whose onStateChange fires ENDED, and
+   advance() plays the next title. Fallback: the search result carries
+   lengthText, so if the API never loads we arm a timer for the
+   video's length instead. A stale player or timer is destroyed the
+   moment a new title starts, so it can never advance the wrong video. */
+var ytPlayer = null, ytApiReady = false, ytApiLoading = false, ytPending = null, ytTimer = null, embedTimer = null;
+function clearAdvanceTimers(){ if(ytTimer){ clearTimeout(ytTimer); ytTimer = null; } if(embedTimer){ clearTimeout(embedTimer); embedTimer = null; } }
+function destroyYtPlayer(){ if(ytPlayer && ytPlayer.destroy){ try{ ytPlayer.destroy(); }catch(e){} } ytPlayer = null; ytPending = null; }
+function loadYtApi(){
+  if(window.YT && window.YT.Player){ ytApiReady = true; return; }
+  if(ytApiLoading) return;
+  ytApiLoading = true;
+  window.onYouTubeIframeAPIReady = function(){
+    ytApiReady = true;
+    if(ytPending){ var p = ytPending; ytPending = null; makeYtPlayer(p.frame, p.doc); if(ytPlayer){ if(ytTimer){ clearTimeout(ytTimer); ytTimer = null; } } else armYtFallback(p.doc); }
+  };
+  var s = document.createElement("script");
+  s.src = "https://www.youtube.com/iframe_api";
+  s.onerror = function(){ ytApiLoading = false; };
+  document.head.appendChild(s);
+}
+function makeYtPlayer(frame, doc){
+  destroyYtPlayer();
+  if(!window.YT || !window.YT.Player) return;
+  try{
+    ytPlayer = new YT.Player(frame, { events:{ onStateChange:function(e){
+      if(!window.YT) return;
+      if(e.data===YT.PlayerState.ENDED){ if(state.current===doc) advance(); }
+      else if(e.data===YT.PlayerState.PLAYING){ setPlayUI(true, "LIVE"); if(window.ArchiveTV && window.ArchiveTV.setPlaying) window.ArchiveTV.setPlaying(true); }
+      else if(e.data===YT.PlayerState.PAUSED){ setPlayUI(false); if(window.ArchiveTV && window.ArchiveTV.setPlaying) window.ArchiveTV.setPlaying(false); }
+    }}});
+  }catch(e){ ytPlayer = null; }
+}
+function armYtFallback(doc){
+  if(ytTimer) clearTimeout(ytTimer);
+  if(!doc.ytLen) return;
+  ytTimer = setTimeout(function(){ ytTimer = null; if(state.current===doc) advance(); }, Math.max(5000, doc.ytLen*1000));
+}
 function playYouTube(doc){
   embedPausedDoc = null;
+  destroyYtPlayer(); clearAdvanceTimers();
   state.current = doc;
   updateNowPanel(doc);
   markActiveChannel();
   var stage = $("stage");
   stage.innerHTML = "";
   var f = document.createElement("iframe");
-  f.src = "https://www.youtube-nocookie.com/embed/"+encodeURIComponent(doc.ytId)+"?autoplay=1&rel=0";
+  f.src = "https://www.youtube-nocookie.com/embed/"+encodeURIComponent(doc.ytId)+"?autoplay=1&rel=0&enablejsapi=1";
   f.allow = "autoplay; fullscreen; picture-in-picture";
   f.allowFullscreen = true;
   f.title = doc.title||"YouTube video";
   stage.appendChild(f);
+  loadYtApi();
+  if(ytApiReady) makeYtPlayer(f, doc);
+  else { ytPending = { frame:f, doc:doc }; armYtFallback(doc); }
   setPlayUI(true, "LIVE"); syncLed();
 }
 function playDoc(doc, opts){
   opts = opts||{};
   embedPausedDoc = null;
+  destroyYtPlayer(); clearAdvanceTimers();
   state.current = doc;
   state.mode = opts.channel!=null ? "channel" : "library";
   if(opts.channel!=null){ state.channel = opts.channel; }
@@ -964,7 +1022,7 @@ function playDoc(doc, opts){
       v.addEventListener("ended", function(){ syncPlayUI(); advance(); });
       v.addEventListener("play", syncPlayUI);
       v.addEventListener("pause", syncPlayUI);
-      v.addEventListener("error", function(){ useEmbed(doc); }, true);
+      v.addEventListener("error", function(){ useEmbed(doc, len); }, true);
       stage.appendChild(v);
       syncPlayUI(); syncLed();
       var p = v.play(); if(p && p.catch) p.catch(function(){});
@@ -972,7 +1030,8 @@ function playDoc(doc, opts){
     .catch(function(){ useEmbed(doc); });
 }
 
-function useEmbed(doc){
+function useEmbed(doc, lenSec){
+  destroyYtPlayer(); clearAdvanceTimers();
   var stage = $("stage");
   stage.innerHTML = "";
   var f = document.createElement("iframe");
@@ -983,6 +1042,10 @@ function useEmbed(doc){
   stage.appendChild(f);
   embedPausedDoc = null;
   setPlayUI(true, "LIVE"); syncLed();
+  /* The Archive embed player has no end event either, so when we know
+     the running time, advance on a timer. Pausing the embed does not
+     pause this timer, so after a long pause it can fire early. */
+  if(lenSec){ embedTimer = setTimeout(function(){ embedTimer = null; if(state.current===doc) advance(); }, Math.max(5000, lenSec*1000)); }
 }
 
 function advance(){
