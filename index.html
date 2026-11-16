@@ -317,13 +317,14 @@
         <a href="#directory">Directory</a>
         <a href="#guide">Guide</a>
         <a href="#library">Library</a>
+        <button type="button" id="navCheckUpdate" style="display:block; width:100%; text-align:left; background:none; border:0; padding:10px 14px; font:inherit; font-size:14px; font-weight:700; color:var(--ink); cursor:pointer;">Check for updates</button>
       </nav>
     </div>
     <span class="clock mono" id="clock" aria-hidden="true"></span>
   </div>
 </header>
 
-<div id="updateBar" style="display:none; align-items:center; gap:10px; flex-wrap:wrap; background:#1a2b1a; border:1px solid #2e7d32; color:#e8f5e9; border-radius:12px; padding:10px 14px; margin:12px auto; max-width:1180px;">
+<div id="updateBar" style="display:none; position:fixed; top:12px; left:50%; transform:translateX(-50%); width:calc(100% - 24px); max-width:720px; z-index:9999; align-items:center; gap:10px; flex-wrap:wrap; background:#1a2b1a; border:1px solid #2e7d32; color:#e8f5e9; border-radius:12px; padding:10px 14px; box-shadow:0 8px 30px rgba(0,0,0,.55);">
   <span id="updateText" style="flex:1; min-width:200px;"></span>
   <button id="updateBtn" style="background:#ffb300; color:#111; border:0; border-radius:8px; padding:8px 14px; font-weight:700; cursor:pointer;">Update</button>
   <button onclick="document.getElementById('updateBar').style.display='none'" style="background:transparent; color:#e8f5e9; border:1px solid #555; border-radius:8px; padding:8px 12px; cursor:pointer;">Dismiss</button>
@@ -499,7 +500,7 @@
 (function(){
 "use strict";
 var SLOT = 1800; /* 30-minute programming blocks, aligned to the epoch */
-var APP_VERSION = "1.13";
+var APP_VERSION = "1.14";
 function cmpVer(a, b){
   var pa = String(a||"").replace(/^v/,"").split("."), pb = String(b||"").replace(/^v/,"").split(".");
   for(var i=0;i<Math.max(pa.length,pb.length);i++){
@@ -1022,6 +1023,7 @@ function tuneChannel(idx, fromSurf){
 }
 
 function updateNowPanel(doc){
+  if(typeof renderMusicGenres==="function") renderMusicGenres();
   $("nowYear").textContent = doc.year ? "Year " + doc.year : "";
   $("nowBy").textContent = doc.creator ? String(doc.creator).slice(0,80) : "";
   var d = cleanDesc(doc.description);
@@ -1403,6 +1405,12 @@ $("tvYear").addEventListener("change", function(){ setYearFilter(this.value); })
 window.checkForUpdate = checkForUpdate;
 var cub = $("checkUpdateBtn");
 if(cub) cub.addEventListener("click", function(){ checkForUpdate(true); });
+var ncu = $("navCheckUpdate");
+if(ncu) ncu.addEventListener("click", function(){
+  var m = $("navMenu"); if(m) m.classList.remove("open");
+  var tg = $("navToggle"); if(tg) tg.setAttribute("aria-expanded","false");
+  checkForUpdate(true);
+});
 $("tuneInBtn").addEventListener("click", function(){ tuneChannel(Math.floor(Math.random()*CHANNELS.length)); });
 $("playPauseBtn").addEventListener("click", togglePlayPause);
 $("pipBtn").addEventListener("click", enterPip);
