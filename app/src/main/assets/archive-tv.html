@@ -486,7 +486,7 @@
 "use strict";
 var SLOT = 1800; /* 30-minute programming blocks, aligned to the epoch */
 var API = "https://archive.org/advancedsearch.php";
-var FIELDS = ["identifier","title","year","creator","description","downloads","runtime"];
+var FIELDS = ["identifier","title","year","creator","description","downloads","runtime","subject"];
 
 var CHANNELS = [
   { num:"02", name:"Cartoons", desc:"Classic cartoons and animation, from Popeye to public-domain oddities.", q:"(collection:classic_cartoons OR collection:animationandcartoons) AND mediatype:movies AND year:[* TO 2026]", yt:"classic cartoons popeye" },
@@ -567,9 +567,22 @@ function seededShuffle(arr, seed){
   return a;
 }
 
+var ADULT_EXCLUDE = " AND NOT subject:nudity AND NOT subject:adult AND NOT subject:erotic AND NOT subject:erotica AND NOT subject:porn";
 function channelQuery(idx){
-  if(!state.yearFilter) return CHANNELS[idx].q;
-  return "(" + CHANNELS[idx].q + ") AND year:" + state.yearFilter;
+  var q = "(" + CHANNELS[idx].q + ")" + ADULT_EXCLUDE;
+  if(!state.yearFilter) return q;
+  return q + " AND year:" + state.yearFilter;
+}
+/* Family-friendly filter: drop titles/descriptions that look adult, even if Archive.org did not tag them. */
+var ADULT_WORDS = /\b(hentai|porn|pornography|xxx|nsfw|erotic|erotica|nudity|nude|naked|uncensored|striptease|sexually explicit)\b|\[adult\]/i;
+function isAdultDoc(d){
+  if(!d) return false;
+  var hay = ((d.title||"") + " " + (d.description||"")).toLowerCase();
+  if(ADULT_WORDS.test(hay)) return true;
+  var subs = d.subject;
+  if(Array.isArray(subs)){ for(var i=0;i<subs.length;i++){ if(/nudity|adult|erotic|porn/i.test(String(subs[i]))) return true; } }
+  else if(typeof subs==="string" && /nudity|adult|erotic|porn/i.test(subs)) return true;
+  return false;
 }
 
 /* ---------- Shorts: anything under 30 seconds lives here ---------- */
@@ -619,11 +632,11 @@ function loadPlaylist(idx){
   }
   var ch = CHANNELS[idx];
   return iaSearch(channelQuery(idx), { rows:48, sort:"downloads desc" }).then(function(res){
-    var docs = res.docs||[];
+    var docs = (res.docs||[]).filter(function(d){ return !isAdultDoc(d); });
     var ytQ = ch.yt ? ch.yt + (state.yearFilter ? " " + state.yearFilter : "") : null;
     if(!ytQ) { var list0 = seededShuffle(docs, idx+7); state.playlists[idx] = list0; return list0; }
     return ytSearch(ytQ).then(function(ytDocs){
-      var all = docs.concat(ytDocs);
+      var all = docs.concat((ytDocs||[]).filter(function(d){ return !isAdultDoc(d); }));
       var list = seededShuffle(all, idx+7);
       state.playlists[idx] = list;
       return list;
@@ -782,6 +795,10 @@ function playDoc(doc, opts){
   state.mode = opts.channel!=null ? "channel" : "library";
   if(opts.channel!=null){ state.channel = opts.channel; }
   if(opts.pos!=null){ state.pos = opts.pos; }
+  if(isAdultDoc(doc) && opts.channel!=null){
+    var l3 = state.playlists[opts.channel]||[];
+    if(l3.length){ var nx3 = ((opts.pos||0)+1)%l3.length; playDoc(l3[nx3], { channel:opts.channel, pos:nx3, seek:0 }); return; }
+  }
   updateNowPanel(doc);
   markActiveChannel();
   if(doc.ytId){ playYouTube(doc); return; }
