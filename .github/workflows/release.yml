@@ -2,7 +2,7 @@ name: Release APK
 
 # Publish the release APK as a GitHub Release, no manual download needed.
 # Add this file on github.com, then run it from the Actions tab.
-# It builds the APK and attaches it as Archive-TV-v1.13.apk to release v1.13.
+# It builds the APK and attaches it as Archive-TV-v1.14.apk to release v1.14.
 on:
   workflow_dispatch:
 jobs:
@@ -44,13 +44,13 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: gradle assembleRelease --stacktrace
 
-      - name: Rename APK to Archive-TV-v1.13.apk
-        run: cp app/build/outputs/apk/release/app-release.apk Archive-TV-v1.13.apk
+      - name: Rename APK to Archive-TV-v1.14.apk
+        run: cp app/build/outputs/apk/release/app-release.apk Archive-TV-v1.14.apk
 
-      - name: Create release v1.13 with APK
+      - name: Create release v1.14 with APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.13
-          name: Archive TV v1.13
-          body: Archive TV v1.13, package com.archivetv.app, stops a stale channel playlist from stealing the video when surfing fast.
-          files: Archive-TV-v1.13.apk
+          tag_name: v1.14
+          name: Archive TV v1.14
+          body: Archive TV v1.14, package com.archivetv.app, update banner is a popup, Check for updates in the Menu, and the genre picker is synced on every play.
+          files: Archive-TV-v1.14.apk
