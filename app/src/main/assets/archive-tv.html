@@ -499,7 +499,7 @@
 (function(){
 "use strict";
 var SLOT = 1800; /* 30-minute programming blocks, aligned to the epoch */
-var APP_VERSION = "1.12";
+var APP_VERSION = "1.13";
 function cmpVer(a, b){
   var pa = String(a||"").replace(/^v/,"").split("."), pb = String(b||"").replace(/^v/,"").split(".");
   for(var i=0;i<Math.max(pa.length,pb.length);i++){
@@ -1000,6 +1000,12 @@ function tuneChannel(idx, fromSurf){
   setStageLoading(CHANNELS[idx].name);
   var lm = $("ledMeta"); if(lm) lm.textContent = CHANNELS[idx].name + " · tuning in…";
   loadPlaylist(idx).then(function(list){
+    /* Stale tune guard: if the user surfed away while this playlist was
+       loading, do not let the old channel steal the video. This was the
+       v1.11 News bug: tuning News, then Music, then the stale News playlist
+       resolved and played News while the Music genre picker stayed visible,
+       because playDoc changes the channel without re-running tuneChannel. */
+    if(state.channel!==idx) return;
     if(!list.length){
       var emptyMsg = state.yearFilter
         ? 'Nothing on this channel is from ' + state.yearFilter + '. Try another channel, a different year, or set the year back to All years.'
