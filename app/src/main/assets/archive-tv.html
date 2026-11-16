@@ -299,7 +299,7 @@
 
 <header class="topbar">
   <div class="topbar-in">
-    <span class="live-pill"><span class="live-dot" aria-hidden="true"></span>ON AIR · 13 CHANNELS</span>
+    <span class="live-pill"><span class="live-dot" aria-hidden="true"></span>ON AIR · 15 CHANNELS</span>
     <div class="nav-dropdown" id="navDropdown">
       <button type="button" class="nav-toggle" id="navToggle" aria-haspopup="true" aria-expanded="false" aria-controls="navMenu">
         <span>Menu</span>
@@ -494,7 +494,7 @@ var CHANNELS = [
   { num:"04", name:"Commercials", desc:"Decades of television commercials, jingles and all.", q:"(collection:vhscommercials OR subject:\"television commercials\") AND mediatype:movies AND year:[* TO 2026]", yt:"vintage tv commercials" },
   { num:"05", name:"Drama", desc:"Drama features: golden-age Hollywood and beyond.", q:"subject:drama AND mediatype:movies AND year:[* TO 2026]", yt:"classic drama movies full" },
   { num:"06", name:"Gameshows", desc:"Game shows: contestants, prizes, and studio lights.", q:"subject:\"game show\" AND mediatype:movies AND year:[* TO 2026]", yt:"classic game show full episode" },
-  { num:"07", name:"Kids", desc:"For the kids: family films, cartoons, and children's shows.", q:"subject:children AND mediatype:movies AND year:[* TO 2026]", yt:"kids cartoons full episodes" },
+  { num:"07", name:"Kids", desc:"For the kids: family films, cartoons, and children's shows.", q:"(subject:children OR subject:kids) AND (subject:animated OR subject:animation OR subject:cartoon OR subject:cartoons OR subject:family OR subject:puppet OR subject:educational) AND mediatype:movies AND year:[* TO 2026]", yt:"kids cartoons full episodes" },
   { num:"08", name:"Movies", desc:"Feature films, 1900 to today.", q:"collection:feature_films AND mediatype:movies AND year:[* TO 2026]", yt:"classic movies full free" },
   { num:"09", name:"Music", desc:"Music films, concerts, and musicals.", q:"subject:music AND mediatype:movies AND year:[* TO 2026]", yt:"classic music concert full" },
   { num:"10", name:"News", desc:"Newsreels: the week's history, as theaters saw it.", q:"collection:universal_newsreels AND mediatype:movies AND year:[* TO 2026]", yt:"vintage newsreel" },
