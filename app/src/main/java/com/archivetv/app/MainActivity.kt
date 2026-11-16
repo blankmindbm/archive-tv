@@ -1,6 +1,8 @@
 package com.archivetv.app
 
 import android.app.PictureInPictureParams
+import android.content.Intent
+import android.net.Uri
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -21,7 +23,9 @@ import androidx.appcompat.app.AppCompatActivity
  * The full site is bundled as app/src/main/assets/archive-tv.html
  * and loaded in a WebView. All videos still stream live from
  * archive.org at play time, nothing is hosted or copied.
- * 13 channels, year chooser, directory, guide, and searchable library.
+ * 15 channels, year chooser, directory, guide, and searchable library.
+ * Update check: the page checks GitHub releases and calls openUpdate()
+ * to open the release page in the system browser for download.
  *
  * Picture-in-Picture: the TV deck has a PiP button, and pressing Home
  * while a video is playing auto-enters PiP. The page hides everything
@@ -44,6 +48,18 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun setPlaying(playing: Boolean) {
             isVideoPlaying = playing
+        }
+
+        @JavascriptInterface
+        fun openUpdate(url: String) {
+            runOnUiThread {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    startActivity(intent)
+                } catch (_: Exception) {
+                    // No browser available, stay in-app.
+                }
+            }
         }
     }
 

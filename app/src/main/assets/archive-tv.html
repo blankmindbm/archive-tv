@@ -317,6 +317,12 @@
   </div>
 </header>
 
+<div id="updateBar" style="display:none; align-items:center; gap:10px; flex-wrap:wrap; background:#1a2b1a; border:1px solid #2e7d32; color:#e8f5e9; border-radius:12px; padding:10px 14px; margin:12px auto; max-width:1180px;">
+  <span id="updateText" style="flex:1; min-width:200px;"></span>
+  <button id="updateBtn" style="background:#ffb300; color:#111; border:0; border-radius:8px; padding:8px 14px; font-weight:700; cursor:pointer;">Update</button>
+  <button onclick="document.getElementById('updateBar').style.display='none'" style="background:transparent; color:#e8f5e9; border:1px solid #555; border-radius:8px; padding:8px 12px; cursor:pointer;">Dismiss</button>
+</div>
+
 <div class="wrap">
 
   <!-- ============ THEATER ============ -->
@@ -478,6 +484,7 @@
 
   <footer>
     <p>Every video on this page streams directly from the <a href="https://archive.org" target="_blank" rel="noopener">Internet Archive</a>, a nonprofit library of millions of free books, movies, software, music, and more. Titles, artwork, and playback all come from archive.org at the moment you press play. Channel schedules are generated from the clock, so everyone who tunes in sees the same show at the same point.</p>
+  <p><button onclick="checkForUpdate(true)" style="background:#222; color:#eee; border:1px solid #555; border-radius:8px; padding:8px 14px; cursor:pointer;">Check for updates</button> <span style="color:var(--muted);">Archive TV v<span id="appVer"></span></span></p>
   </footer>
 </div>
 
@@ -485,6 +492,54 @@
 (function(){
 "use strict";
 var SLOT = 1800; /* 30-minute programming blocks, aligned to the epoch */
+var APP_VERSION = "1.8";
+function cmpVer(a, b){
+  var pa = String(a||"").replace(/^v/,"").split("."), pb = String(b||"").replace(/^v/,"").split(".");
+  for(var i=0;i<Math.max(pa.length,pb.length);i++){
+    var na = parseInt(pa[i]||"0",10), nb = parseInt(pb[i]||"0",10);
+    if(na!==nb) return na-nb;
+  }
+  return 0;
+}
+function showUpdateBar(latest){
+  var bar = $("updateBar"); if(!bar) return;
+  bar.style.display = "flex";
+  $("updateText").textContent = "Update available: Archive TV " + latest.tag_name + " (you have v" + APP_VERSION + ")";
+  $("updateBtn").style.display = "";
+  $("updateBtn").onclick = function(){
+    var url = latest.html_url || "https://github.com/blankmindbm/archive-tv/releases/latest";
+    if(window.ArchiveTV && window.ArchiveTV.openUpdate) window.ArchiveTV.openUpdate(url);
+    else window.open(url, "_blank");
+  };
+}
+function checkForUpdate(manual){
+  var bar = $("updateBar");
+  return fetch("https://api.github.com/repos/blankmindbm/archive-tv/releases/latest").then(function(r){
+    if(!r.ok) throw new Error("update check "+r.status);
+    return r.json();
+  }).then(function(rel){
+    try{ localStorage.setItem("archiveTV.lastUpdateCheck", String(Date.now())); }catch(e){}
+    if(rel && rel.tag_name && cmpVer(rel.tag_name, APP_VERSION) > 0){
+      showUpdateBar(rel);
+    } else if(manual && bar){
+      bar.style.display = "flex";
+      $("updateText").textContent = "You are on the latest version (v" + APP_VERSION + ").";
+      $("updateBtn").style.display = "none";
+    }
+  }).catch(function(){
+    if(manual && bar){
+      bar.style.display = "flex";
+      $("updateText").textContent = "Could not check for updates right now. Check your connection and try again.";
+      $("updateBtn").style.display = "none";
+    }
+  });
+}
+function autoUpdateCheck(){
+  var last = 0;
+  try{ last = parseInt(localStorage.getItem("archiveTV.lastUpdateCheck")||"0",10)||0; }catch(e){}
+  if(Date.now() - last < 24*60*60*1000) return;
+  checkForUpdate(false);
+}
 var API = "https://archive.org/advancedsearch.php";
 var FIELDS = ["identifier","title","year","creator","description","downloads","runtime","subject","language"];
 
@@ -494,7 +549,7 @@ var CHANNELS = [
   { num:"04", name:"Commercials", desc:"Decades of television commercials, jingles and all.", q:"(collection:vhscommercials OR subject:\"television commercials\") AND mediatype:movies AND year:[* TO 2026]", yt:"vintage tv commercials" },
   { num:"05", name:"Drama", desc:"Drama features: golden-age Hollywood and beyond.", q:"subject:drama AND mediatype:movies AND year:[* TO 2026]", yt:"classic drama movies full" },
   { num:"06", name:"Gameshows", desc:"Game shows: contestants, prizes, and studio lights.", q:"subject:\"game show\" AND mediatype:movies AND year:[* TO 2026]", yt:"classic game show full episode" },
-  { num:"07", name:"Kids", desc:"For the kids: family films, cartoons, and children's shows.", q:"(subject:children OR subject:kids) AND (subject:animated OR subject:animation OR subject:cartoon OR subject:cartoons OR subject:family OR subject:puppet OR subject:educational) AND mediatype:movies AND year:[* TO 2026]", yt:"kids cartoons full episodes" },
+  { num:"07", name:"Kids", desc:"For the kids: cartoons, puppet shows, and educational shows for children.", q:"(subject:children OR subject:kids) AND (subject:animated OR subject:animation OR subject:cartoon OR subject:cartoons OR subject:puppet OR subject:educational) AND mediatype:movies AND year:[* TO 2026]", yt:"kids cartoons full episodes" },
   { num:"08", name:"Movies", desc:"Feature films, 1900 to today.", q:"collection:feature_films AND mediatype:movies AND year:[* TO 2026]", yt:"classic movies full free" },
   { num:"09", name:"Music", desc:"Music films, concerts, and musicals.", q:"subject:music AND mediatype:movies AND year:[* TO 2026]", yt:"classic music concert full" },
   { num:"10", name:"News", desc:"Newsreels: the week's history, as theaters saw it.", q:"collection:universal_newsreels AND mediatype:movies AND year:[* TO 2026]", yt:"vintage newsreel" },
@@ -1243,6 +1298,8 @@ function setYearFilter(value){
   var guideBox = $("guideBox");
   if(guideBox) guideBox.innerHTML = '<div class="guide-loading">Loading the schedule' + (state.yearFilter ? " for " + state.yearFilter : "") + ' from the Archive…</div>';
   refreshSchedules();
+  var av = document.getElementById('appVer'); if(av) av.textContent = APP_VERSION;
+  autoUpdateCheck();
   if(state.mode === "channel" && state.channel >= 0){
     tuneChannel(state.channel);
   }
