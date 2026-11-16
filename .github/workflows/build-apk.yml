@@ -4,49 +4,42 @@ name: Build APK
 # Run it by pushing this project to GitHub, then opening the Actions tab.
 # It uses a pinned system Gradle install, not ./gradlew, because this
 # project does not include gradle-wrapper.jar yet.
-
 on:
   push:
     branches: [main]
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-
       - name: Install Android platform 34 and build tools
         run: |
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
           echo "Using $SDKMANAGER"
           yes | "$SDKMANAGER" --licenses || true
           "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-
       - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.7"
-
-      - name: Decode release keystore
+      - name: Decrypt release keystore
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | tr -d '[:space:]' | base64 -di > release.keystore
+          base64 -d release.keystore.enc.b64 > release.keystore.enc
+          openssl enc -d -aes-256-cbc -pbkdf2 -in release.keystore.enc -out release.keystore -pass pass:"${{ secrets.KEYSTORE_PASSWORD }}"
           ls -l release.keystore
           echo "KEYSTORE_PATH=$PWD/release.keystore" >> $GITHUB_ENV
-
       - name: Build release APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: gradle assembleRelease --stacktrace
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
