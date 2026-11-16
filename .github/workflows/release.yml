@@ -2,7 +2,7 @@ name: Release APK
 
 # Publish the release APK as a GitHub Release, no manual download needed.
 # Add this file on github.com, then run it from the Actions tab.
-# It builds the APK and attaches it as Archive-TV-v1.9.apk to release v1.9.
+# It builds the APK and attaches it as Archive-TV-v1.10.apk to release v1.10.
 on:
   workflow_dispatch:
 jobs:
@@ -44,13 +44,13 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: gradle assembleRelease --stacktrace
 
-      - name: Rename APK to Archive-TV-v1.9.apk
-        run: cp app/build/outputs/apk/release/app-release.apk Archive-TV-v1.9.apk
+      - name: Rename APK to Archive-TV-v1.10.apk
+        run: cp app/build/outputs/apk/release/app-release.apk Archive-TV-v1.10.apk
 
-      - name: Create release v1.9 with APK
+      - name: Create release v1.10 with APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.9
-          name: Archive TV v1.9
-          body: Archive TV v1.9, package com.archivetv.app, with release signing so updates install over the old app.
-          files: Archive-TV-v1.9.apk
+          tag_name: v1.10
+          name: Archive TV v1.10
+          body: Archive TV v1.10, package com.archivetv.app, keeps sermons and Bible studies out of the Music channel.
+          files: Archive-TV-v1.10.apk
