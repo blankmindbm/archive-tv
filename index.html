@@ -491,7 +491,7 @@
 
   <footer>
     <p>Every video on this page streams directly from the <a href="https://archive.org" target="_blank" rel="noopener">Internet Archive</a>, a nonprofit library of millions of free books, movies, software, music, and more. Titles, artwork, and playback all come from archive.org at the moment you press play. Channel schedules are generated from the clock, so everyone who tunes in sees the same show at the same point.</p>
-  <p><button onclick="checkForUpdate(true)" style="background:#222; color:#eee; border:1px solid #555; border-radius:8px; padding:8px 14px; cursor:pointer;">Check for updates</button> <span style="color:var(--muted);">Archive TV v<span id="appVer"></span></span></p>
+  <p><button id="checkUpdateBtn" onclick="checkForUpdate(true)" style="background:#222; color:#eee; border:1px solid #555; border-radius:8px; padding:8px 14px; cursor:pointer;">Check for updates</button> <span style="color:var(--muted);">Archive TV v<span id="appVer"></span></span></p>
   </footer>
 </div>
 
@@ -499,7 +499,7 @@
 (function(){
 "use strict";
 var SLOT = 1800; /* 30-minute programming blocks, aligned to the epoch */
-var APP_VERSION = "1.11";
+var APP_VERSION = "1.12";
 function cmpVer(a, b){
   var pa = String(a||"").replace(/^v/,"").split("."), pb = String(b||"").replace(/^v/,"").split(".");
   for(var i=0;i<Math.max(pa.length,pb.length);i++){
@@ -651,6 +651,7 @@ function renderMusicGenres(){
   var box = $("musicGenres"); if(!box) return;
   var isMusic = state.channel===MUSIC_IDX;
   box.hidden = !isMusic;
+  box.style.display = isMusic ? "flex" : "none";
   if(!isMusic) return;
   box.innerHTML = '<span class="mg-label">MUSIC CHOICE · PICK A GENRE</span>' + MUSIC_GENRES.map(function(g){
     return '<button type="button" class="mg-btn' + (state.musicGenre===g.q ? " active" : "") + '" data-mg="' + esc(g.q) + '">' + esc(g.label) + '</button>';
@@ -1095,6 +1096,7 @@ function markActiveChannel(){
     btn.setAttribute("aria-pressed", on?"true":"false");
   });
   if(state.channel>=0){ $("dialNum").textContent = CHANNELS[state.channel].num; }
+  if(typeof renderMusicGenres==="function") renderMusicGenres();
   syncLed();
   if(typeof renderDirectoryNow==="function") renderDirectoryNow();
 }
@@ -1388,6 +1390,13 @@ setInterval(function(){
 }, 15000);
 
 $("tvYear").addEventListener("change", function(){ setYearFilter(this.value); });
+/* Footer "Check for updates" and the banner Update button: checkForUpdate lives
+   inside this IIFE, so expose it for the footer's inline onclick and wire the
+   button directly too. (v1.11's footer button did nothing because the inline
+   handler could not see the function.) */
+window.checkForUpdate = checkForUpdate;
+var cub = $("checkUpdateBtn");
+if(cub) cub.addEventListener("click", function(){ checkForUpdate(true); });
 $("tuneInBtn").addEventListener("click", function(){ tuneChannel(Math.floor(Math.random()*CHANNELS.length)); });
 $("playPauseBtn").addEventListener("click", togglePlayPause);
 $("pipBtn").addEventListener("click", enterPip);
