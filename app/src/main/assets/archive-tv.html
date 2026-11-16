@@ -108,6 +108,12 @@
   .deck-ch .dname{ font-size:9.5px; font-weight:700; letter-spacing:.02em; line-height:1.15; text-align:center; color:var(--muted); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .deck-ch.active{ background:var(--ink); border-color:var(--ink); }
   .deck-ch.active .dname{ color:var(--bg); opacity:.75; }
+  .music-genres{ display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .music-genres[hidden]{ display:none; }
+  .music-genres .mg-label{ width:100%; font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; letter-spacing:.14em; color:var(--accent); }
+  .mg-btn{ border:1px solid var(--line); border-bottom-width:3px; background:var(--panel2); color:var(--ink); border-radius:7px; font-weight:800; font-size:13px; padding:8px 12px; min-height:40px; }
+  .mg-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .mg-btn.active{ background:var(--ink); border-color:var(--ink); color:var(--bg); }
   .deck-year{ margin-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
   .deck-year.active{ border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
   .deck-year-label{ display:flex; flex-direction:column; gap:1px; min-width:0; }
@@ -367,6 +373,7 @@
           <span class="deck-year-status" id="tvYearStatus" aria-live="polite">All years playing</span>
         </div>
         <div class="deck-channels" id="deckChannels" role="group" aria-label="Channels"></div>
+        <div class="music-genres" id="musicGenres" hidden></div>
         <p class="deck-hint">Tap a channel to tune in &nbsp;·&nbsp; Space play / pause &nbsp;·&nbsp; ↑ ↓ surf channels</p>
       </div>
 
@@ -492,7 +499,7 @@
 (function(){
 "use strict";
 var SLOT = 1800; /* 30-minute programming blocks, aligned to the epoch */
-var APP_VERSION = "1.10";
+var APP_VERSION = "1.11";
 function cmpVer(a, b){
   var pa = String(a||"").replace(/^v/,"").split("."), pb = String(b||"").replace(/^v/,"").split(".");
   for(var i=0;i<Math.max(pa.length,pb.length);i++){
@@ -551,7 +558,7 @@ var CHANNELS = [
   { num:"06", name:"Gameshows", desc:"Game shows: contestants, prizes, and studio lights.", q:"subject:\"game show\" AND mediatype:movies AND year:[* TO 2026]", yt:"classic game show full episode" },
   { num:"07", name:"Kids", desc:"For the kids: cartoons, puppet shows, and educational shows for children.", q:"(subject:children OR subject:kids) AND (subject:animated OR subject:animation OR subject:cartoon OR subject:cartoons OR subject:puppet OR subject:educational) AND mediatype:movies AND year:[* TO 2026]", yt:"kids cartoons full episodes" },
   { num:"08", name:"Movies", desc:"Feature films, 1900 to today.", q:"collection:feature_films AND mediatype:movies AND year:[* TO 2026]", yt:"classic movies full free" },
-  { num:"09", name:"Music", desc:"Music films, concerts, and musicals.", q:"subject:music AND NOT subject:religion AND NOT subject:bible AND NOT subject:church AND NOT subject:christianity AND NOT subject:sermon AND NOT subject:ministry AND NOT subject:preaching AND NOT subject:jesus AND NOT subject:god AND NOT subject:prayer AND NOT subject:worship AND mediatype:movies AND year:[* TO 2026]", yt:"classic music concert full" },
+  { num:"09", name:"Music", desc:"Music films, concerts, and musicals.", q:"subject:music AND (subject:concert OR subject:song OR subject:\"music video\" OR subject:musical OR subject:band OR subject:opera OR subject:singing OR subject:rock OR subject:pop OR subject:jazz OR subject:country OR subject:classical OR subject:metal OR subject:blues OR subject:folk OR subject:punk OR subject:\"hip hop\" OR subject:gospel OR subject:christian) AND NOT subject:religion AND NOT subject:bible AND NOT subject:church AND NOT subject:christianity AND NOT subject:sermon AND NOT subject:ministry AND NOT subject:preaching AND NOT subject:jesus AND NOT subject:god AND NOT subject:prayer AND NOT subject:worship AND NOT subject:dance AND NOT subject:dancing AND NOT subject:ballet AND mediatype:movies AND year:[* TO 2026]", yt:"classic music concert full" },
   { num:"10", name:"News", desc:"Newsreels: the week's history, as theaters saw it.", q:"collection:universal_newsreels AND mediatype:movies AND year:[* TO 2026]", yt:"vintage newsreel" },
   { num:"11", name:"Other", desc:"Everything else in the Archive: the catch-all channel.", q:"mediatype:movies AND year:[* TO 2026]", yt:"archive.org movies" },
   { num:"12", name:"Soaps", desc:"Soap operas and daytime drama.", q:"subject:\"soap opera\" AND mediatype:movies AND year:[* TO 2026]", yt:"classic soap opera full episode" },
@@ -573,6 +580,16 @@ var TOPICS = [
   { label:"2010s & 2020s · recent", q:"year:[2010 TO 2026]" }
 ];
 
+/* Music Choice style genre picker for the Music channel only. */
+var MUSIC_GENRES = [
+  { label:"All", q:"" }, { label:"Rock", q:"rock" }, { label:"Pop", q:"pop" },
+  { label:"Country", q:"country" }, { label:"Jazz", q:"jazz" }, { label:"Classical", q:"classical" },
+  { label:"Hip Hop", q:"hip hop" }, { label:"Metal", q:"metal" }, { label:"Blues", q:"blues" },
+  { label:"Folk", q:"folk" }, { label:"Punk", q:"punk" }, { label:"Christian", q:"christian" },
+  { label:"Gospel", q:"gospel" }
+];
+var MUSIC_IDX = 8; /* CHANNELS index of Music */
+
 var state = {
   channel: -1,            /* index into CHANNELS, -1 = none */
   playlists: {},          /* channel idx -> docs[] */
@@ -580,6 +597,7 @@ var state = {
   current: null,          /* doc now playing */
   mode: "idle",           /* idle | channel | library */
   yearFilter: null,       /* null = all years, otherwise a single year e.g. 1987 */
+  musicGenre: "",         /* Music channel genre, "" = all genres */
   dirCounts: {},          /* channel idx -> total titles in Archive for that channel query */
   favs: new Map(),
   lib: { q:"", topic:null, page:0, total:0, loading:false }
@@ -625,8 +643,26 @@ function seededShuffle(arr, seed){
 var ADULT_EXCLUDE = " AND NOT subject:nudity AND NOT subject:adult AND NOT subject:erotic AND NOT subject:erotica AND NOT subject:porn";
 function channelQuery(idx){
   var q = "(" + CHANNELS[idx].q + ")" + ADULT_EXCLUDE;
+  if(idx===MUSIC_IDX && state.musicGenre) q += ' AND subject:"' + state.musicGenre + '"';
   if(!state.yearFilter) return q;
   return q + " AND year:" + state.yearFilter;
+}
+function renderMusicGenres(){
+  var box = $("musicGenres"); if(!box) return;
+  var isMusic = state.channel===MUSIC_IDX;
+  box.hidden = !isMusic;
+  if(!isMusic) return;
+  box.innerHTML = '<span class="mg-label">MUSIC CHOICE · PICK A GENRE</span>' + MUSIC_GENRES.map(function(g){
+    return '<button type="button" class="mg-btn' + (state.musicGenre===g.q ? " active" : "") + '" data-mg="' + esc(g.q) + '">' + esc(g.label) + '</button>';
+  }).join("");
+  Array.prototype.forEach.call(box.querySelectorAll(".mg-btn"), function(btn){
+    btn.addEventListener("click", function(){
+      state.musicGenre = btn.getAttribute("data-mg");
+      state.playlists = {};
+      renderMusicGenres();
+      tuneChannel(MUSIC_IDX);
+    });
+  });
 }
 /* Family-friendly filter: drop titles/descriptions that look adult, even if Archive.org did not tag them. */
 var ADULT_WORDS = /\b(hentai|porn|pornography|xxx|nsfw|erotic|erotica|nudity|nude|naked|uncensored|striptease|sexually explicit)\b|\[adult\]/i;
@@ -655,8 +691,9 @@ function isEnglishDoc(d){
 function isReligiousTalkDoc(d, idx){
   if(!d || !CHANNELS[idx] || CHANNELS[idx].name !== "Music") return false;
   var subs = d.subject;
-  if(Array.isArray(subs)){ for(var i=0;i<subs.length;i++){ if(/religion|bible|church|christianity|sermon|ministry|preaching|jesus|god|prayer|worship/i.test(String(subs[i]))) return true; } }
-  else if(typeof subs==="string" && /religion|bible|church|christianity|sermon|ministry|preaching|jesus|god|prayer|worship/i.test(subs)) return true;
+  if(Array.isArray(subs)){ for(var i=0;i<subs.length;i++){ if(/religion|bible|church|christianity|sermon|ministry|preaching|jesus|god|prayer|worship|dance|dancing|ballet/i.test(String(subs[i]))) return true; } }
+  else if(typeof subs==="string" && /religion|bible|church|christianity|sermon|ministry|preaching|jesus|god|prayer|worship|dance|dancing|ballet/i.test(subs)) return true;
+  if(/^dances of\b/i.test(String(d.title||""))) return true;
   return false;
 }
 function isAdultDoc(d){
@@ -717,7 +754,7 @@ function loadPlaylist(idx){
   var ch = CHANNELS[idx];
   return iaSearch(channelQuery(idx), { rows:48, sort:"downloads desc" }).then(function(res){
     var docs = (res.docs||[]).filter(function(d){ return !isAdultDoc(d) && isEnglishDoc(d) && !isReligiousTalkDoc(d, idx); });
-    var ytQ = ch.yt ? ch.yt + (state.yearFilter ? " " + state.yearFilter : "") : null;
+    var ytQ = ch.yt ? ch.yt + (idx===MUSIC_IDX && state.musicGenre ? " " + state.musicGenre : "") + (state.yearFilter ? " " + state.yearFilter : "") : null;
     if(!ytQ) { var list0 = seededShuffle(docs, idx+7); state.playlists[idx] = list0; return list0; }
     return ytSearch(ytQ).then(function(ytDocs){
       var all = docs.concat((ytDocs||[]).filter(function(d){ return !isAdultDoc(d) && isEnglishDoc(d) && !isReligiousTalkDoc(d, idx); }));
@@ -958,6 +995,7 @@ function tuneChannel(idx, fromSurf){
   idx = ((idx % CHANNELS.length)+CHANNELS.length)%CHANNELS.length;
   state.channel = idx;
   markActiveChannel();
+  renderMusicGenres();
   setStageLoading(CHANNELS[idx].name);
   var lm = $("ledMeta"); if(lm) lm.textContent = CHANNELS[idx].name + " · tuning in…";
   loadPlaylist(idx).then(function(list){
