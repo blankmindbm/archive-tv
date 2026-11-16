@@ -500,7 +500,7 @@
 (function(){
 "use strict";
 var SLOT = 1800; /* 30-minute programming blocks, aligned to the epoch */
-var APP_VERSION = "1.16";
+var APP_VERSION = "1.17";
 function cmpVer(a, b){
   var pa = String(a||"").replace(/^v/,"").split("."), pb = String(b||"").replace(/^v/,"").split(".");
   for(var i=0;i<Math.max(pa.length,pb.length);i++){
@@ -557,7 +557,7 @@ function autoUpdateCheck(){
   checkForUpdate(false);
 }
 var API = "https://archive.org/advancedsearch.php";
-var FIELDS = ["identifier","title","year","creator","description","downloads","runtime","subject","language"];
+var FIELDS = ["identifier","title","year","creator","description","downloads","runtime","subject","language","collection"];
 
 var CHANNELS = [
   { num:"02", name:"Cartoons", desc:"Classic cartoons and animation, from Popeye to public-domain oddities.", q:"(collection:classic_cartoons OR collection:animationandcartoons) AND mediatype:movies AND year:[* TO 2026]", yt:"classic cartoons popeye" },
@@ -654,8 +654,14 @@ function seededShuffle(arr, seed){
 }
 
 var ADULT_EXCLUDE = " AND NOT subject:nudity AND NOT subject:adult AND NOT subject:erotic AND NOT subject:erotica AND NOT subject:porn";
+/* Login-gated titles: Archive.org items in the loggedin collection (and the
+   inlibrary lending collection) only play for signed-in Archive users, so
+   the player shows "YOU MUST LOG IN TO VIEW THIS CONTENT" instead of the
+   video. Ghost: Rite Here Rite Now Movie 2024 did exactly that on Music.
+   Exclude them from every query, the same way adult titles are excluded. */
+var LOGIN_EXCLUDE = " AND NOT collection:loggedin AND NOT collection:inlibrary";
 function channelQuery(idx){
-  var q = "(" + CHANNELS[idx].q + ")" + ADULT_EXCLUDE;
+  var q = "(" + CHANNELS[idx].q + ")" + ADULT_EXCLUDE + LOGIN_EXCLUDE;
   if(idx===MUSIC_IDX && state.musicGenre) q += ' AND subject:"' + state.musicGenre + '"';
   if(!state.yearFilter) return q;
   return q + " AND year:" + state.yearFilter;
@@ -719,6 +725,30 @@ function isAdultDoc(d){
   else if(typeof subs==="string" && /nudity|adult|erotic|porn/i.test(subs)) return true;
   return false;
 }
+/* Login-gated: drop titles whose files only play for signed-in Archive
+   users. The search query already excludes these collections; this is
+   the safety net for titles that reach the player another way, such as
+   a favorite saved before the fix. YouTube docs carry no collection,
+   so they always pass this check. */
+function isLoginGatedDoc(d){
+  if(!d) return false;
+  var cols = d.collection;
+  if(Array.isArray(cols)){ for(var i=0;i<cols.length;i++){ if(/^(loggedin|inlibrary)$/i.test(String(cols[i]))) return true; } }
+  else if(typeof cols==="string" && /^(loggedin|inlibrary)$/i.test(cols)) return true;
+  return false;
+}
+/* A title that cannot play at all (login-gated files, where the video
+   errors and the embed would only show the login wall): move to the
+   next title on a channel, or say so plainly from the library. */
+function skipUnplayable(doc, opts){
+  opts = opts||{};
+  if(opts.channel!=null){
+    var l = state.playlists[opts.channel]||[];
+    if(l.length){ var nx = ((opts.pos||0)+1)%l.length; playDoc(l[nx], { channel:opts.channel, pos:nx, seek:0 }); return; }
+  }
+  $("stage").innerHTML = '<div class="standby"><div class="big">Login required.</div><p class="sub">This title only plays for signed-in Archive.org users, so Archive TV skips it. Pick another title or channel.</p></div>';
+  var st = $("ledState"); if(st){ st.textContent = "NO SIGNAL"; st.className = "led-state standby"; }
+}
 
 /* ---------- Shorts: anything under 30 seconds lives here ---------- */
 function parseRuntime(rt){
@@ -767,11 +797,11 @@ function loadPlaylist(idx){
   }
   var ch = CHANNELS[idx];
   return iaSearch(channelQuery(idx), { rows:48, sort:"downloads desc" }).then(function(res){
-    var docs = (res.docs||[]).filter(function(d){ return !isAdultDoc(d) && isEnglishDoc(d) && !isReligiousTalkDoc(d, idx); });
+    var docs = (res.docs||[]).filter(function(d){ return !isAdultDoc(d) && isEnglishDoc(d) && !isReligiousTalkDoc(d, idx) && !isLoginGatedDoc(d); });
     var ytQ = ch.yt ? ch.yt + (idx===MUSIC_IDX && state.musicGenre ? " " + state.musicGenre : "") + (state.yearFilter ? " " + state.yearFilter : "") : null;
     if(!ytQ) { var list0 = seededShuffle(docs, idx+7); state.playlists[idx] = list0; return list0; }
     return ytSearch(ytQ).then(function(ytDocs){
-      var all = docs.concat((ytDocs||[]).filter(function(d){ return !isAdultDoc(d) && isEnglishDoc(d) && !isReligiousTalkDoc(d, idx); }));
+      var all = docs.concat((ytDocs||[]).filter(function(d){ return !isAdultDoc(d) && isEnglishDoc(d) && !isReligiousTalkDoc(d, idx) && !isLoginGatedDoc(d); }));
       var list = seededShuffle(all, idx+7);
       state.playlists[idx] = list;
       return list;
@@ -980,7 +1010,7 @@ function playDoc(doc, opts){
   state.mode = opts.channel!=null ? "channel" : "library";
   if(opts.channel!=null){ state.channel = opts.channel; }
   if(opts.pos!=null){ state.pos = opts.pos; }
-  if((isAdultDoc(doc) || !isEnglishDoc(doc)) && opts.channel!=null){
+  if((isAdultDoc(doc) || !isEnglishDoc(doc) || isLoginGatedDoc(doc)) && opts.channel!=null){
     var l3 = state.playlists[opts.channel]||[];
     if(l3.length){ var nx3 = ((opts.pos||0)+1)%l3.length; playDoc(l3[nx3], { channel:opts.channel, pos:nx3, seek:0 }); return; }
   }
@@ -1022,7 +1052,7 @@ function playDoc(doc, opts){
       v.addEventListener("ended", function(){ syncPlayUI(); advance(); });
       v.addEventListener("play", syncPlayUI);
       v.addEventListener("pause", syncPlayUI);
-      v.addEventListener("error", function(){ useEmbed(doc, len); }, true);
+      v.addEventListener("error", function(){ if(isLoginGatedDoc(doc)) skipUnplayable(doc, opts); else useEmbed(doc, len); }, true);
       stage.appendChild(v);
       syncPlayUI(); syncLed();
       var p = v.play(); if(p && p.catch) p.catch(function(){});
@@ -1327,7 +1357,7 @@ function bindCards(container){
   });
 }
 function buildLibQuery(){
-  var parts = ["mediatype:movies"];
+  var parts = ["mediatype:movies", "NOT collection:loggedin", "NOT collection:inlibrary"];
   var decade = $("decade").value;
   if(decade){ var p = decade.split(","); parts.push("year:["+p[0]+" TO "+p[1]+"]"); }
   else parts.push("year:[* TO 2026]");
