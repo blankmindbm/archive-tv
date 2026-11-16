@@ -1,6 +1,6 @@
 name: Build APK
 
-# Build the debug APK in the cloud, with no Android Studio needed.
+# Build the release APK in the cloud, with no Android Studio needed.
 # Run it by pushing this project to GitHub, then opening the Actions tab.
 # It uses a pinned system Gradle install, not ./gradlew, because this
 # project does not include gradle-wrapper.jar yet.
@@ -22,11 +22,6 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # Do not use android-actions/setup-android here. Version 3 fails on
-      # current runners because it tries to install the obsolete
-      # sdkmanager "tools" package, which no longer exists.
-      # ubuntu-latest already ships an Android SDK, so just install
-      # the platform and build tools we need from it.
       - name: Install Android platform 34 and build tools
         run: |
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
@@ -39,12 +34,21 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+      - name: Decode release keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+          echo "KEYSTORE_PATH=$PWD/release.keystore" >> $GITHUB_ENV
+
+      - name: Build release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: gradle assembleRelease --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: archive-tv-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: archive-tv-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
