@@ -1,9 +1,21 @@
 # Archive TV
 
-A Spelunkr-style live TV site built from Archive.org, as an Android app and as a website.
+A live TV site built from Archive.org, as an Android app and as a website.
 
 13 live channels on a shared half-hour clock, so you tune in mid-show like real TV:
-02 Saturday Morning, 03 Feature Films, 04 Noir, 05 Sci-Fi Theater, 06 Horror After Dark, 07 Prelinger, 08 Newsreel Room, 09 Computer Chronicles, 10 Silent Era, 11 NASA and Space, 12 Commercial Break, 13 VHS Vault, 14 Fresh and Recent.
+02 Saturday Morning
+03 Feature Films
+04 Noir
+05 Sci-Fi Theater
+06 Horror After Dark
+07 Prelinger
+08 Newsreel Room
+09 Computer Chronicles
+10 Silent Era
+11 NASA and Space
+12 Commercial Break
+13 VHS Vault
+14 Fresh and Recent
 
 Plus a searchable library over about 14,022,379 Archive.org titles through 2026, a year chooser in the TV deck (All years, or a specific year from 1900 to today), a Directory listing every channel in dial order with what is playing now, a guide, and a retro TV control deck under the video with play/pause, CH minus/plus, and small channel buttons.
 
