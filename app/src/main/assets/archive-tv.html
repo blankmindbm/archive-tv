@@ -500,7 +500,7 @@
 (function(){
 "use strict";
 var SLOT = 1800; /* 30-minute programming blocks, aligned to the epoch */
-var APP_VERSION = "1.14";
+var APP_VERSION = "1.15";
 function cmpVer(a, b){
   var pa = String(a||"").replace(/^v/,"").split("."), pb = String(b||"").replace(/^v/,"").split(".");
   for(var i=0;i<Math.max(pa.length,pb.length);i++){
@@ -589,7 +589,11 @@ var MUSIC_GENRES = [
   { label:"Folk", q:"folk" }, { label:"Punk", q:"punk" }, { label:"Christian", q:"christian" },
   { label:"Gospel", q:"gospel" }
 ];
-var MUSIC_IDX = 8; /* CHANNELS index of Music */
+/* CHANNELS index of Music, found by name. It was hardcoded as 8, but Music is
+   CH 09, the 8th entry in the 0-based list, so index 7; News is index 8.
+   That one-off error attached the whole genre picker to News instead of Music,
+   which is why it showed on News and never on Music. */
+var MUSIC_IDX = (function(){ for(var i=0;i<CHANNELS.length;i++){ if(CHANNELS[i].name==="Music") return i; } return -1; })();
 
 var state = {
   channel: -1,            /* index into CHANNELS, -1 = none */
