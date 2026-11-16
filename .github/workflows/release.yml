@@ -1,6 +1,5 @@
 name: Release APK
 
-
 # Publish the release APK as a GitHub Release, no manual download needed.
 # Add this file on github.com, then run it from the Actions tab.
 # It builds the APK and attaches it as Archive-TV-v1.15.apk to release v1.15.
@@ -14,13 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-
 
       - name: Install Android platform 34 and build tools
         run: |
@@ -28,12 +25,10 @@ jobs:
           yes | "$SDKMANAGER" --licenses || true
           "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
-
       - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.7"
-
 
       - name: Decrypt release keystore
         run: |
@@ -42,7 +37,6 @@ jobs:
           ls -l release.keystore
           echo "KEYSTORE_PATH=$PWD/release.keystore" >> $GITHUB_ENV
 
-
       - name: Build release APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -50,10 +44,8 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: gradle assembleRelease --stacktrace
 
-
       - name: Rename APK to Archive-TV-v1.15.apk
         run: cp app/build/outputs/apk/release/app-release.apk Archive-TV-v1.15.apk
-
 
       - name: Create release v1.15 with APK
         uses: softprops/action-gh-release@v2
