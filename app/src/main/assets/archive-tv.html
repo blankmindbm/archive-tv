@@ -283,6 +283,16 @@
   footer p{ margin:0; font-size:13.5px; color:var(--muted); line-height:1.6; max-width:75ch; }
   footer a{ font-weight:700; }
   .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+
+  /* ---------- Picture-in-Picture mode (Android app) ---------- */
+  body.pip{ background:#000; }
+  body.pip .topbar, body.pip .tv-deck, body.pip .stats, body.pip .side,
+  body.pip #directory, body.pip #guide, body.pip #library, body.pip .hero,
+  body.pip .rail, body.pip .footer{ display:none !important; }
+  body.pip .wrap{ padding:0; margin:0; max-width:none; }
+  body.pip .screen{ position:fixed; inset:0; width:100%; height:100%; border:0; border-radius:0; }
+  body.pip .stage{ position:absolute; inset:0; }
+  .pip-btn{ font:inherit; font-size:13px; font-weight:700; padding:8px 10px; border:1px solid var(--line); border-radius:7px; background:var(--panel); color:var(--ink); min-height:36px; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -340,6 +350,7 @@
             <button type="button" id="chDown" aria-label="Previous channel">− CH</button>
             <div class="dial"><span class="num" id="dialNum">--</span><span class="lbl">CHANNEL</span></div>
             <button type="button" id="chUp" aria-label="Next channel">CH +</button>
+            <button type="button" class="pip-btn" id="pipBtn" aria-label="Picture in picture">PiP</button>
           </div>
         </div>
         <div class="deck-year" id="deckYear">
@@ -615,6 +626,12 @@ function syncLed(){
   }
   nameEl.title = nameEl.textContent;
 }
+function enterPip(){
+  var v = currentVideo();
+  if(window.ArchiveTV && window.ArchiveTV.enterPip){ window.ArchiveTV.enterPip(); return; }
+  if(v && v.requestPictureInPicture){ v.requestPictureInPicture().catch(function(){}); return; }
+  if(v){ try{ v.play(); }catch(e){} }
+}
 function togglePlayPause(){
   var v = currentVideo();
   if(v){
@@ -680,7 +697,7 @@ function playDoc(doc, opts){
       var stage = $("stage");
       stage.innerHTML = "";
       var v = document.createElement("video");
-      v.controls = true; v.autoplay = true; v.playsInline = true;
+      v.controls = true; v.autoplay = true; v.playsInline = true; v.disablePictureInPicture = false;
       v.poster = thumb(doc.identifier);
       v.src = src;
       v.setAttribute("aria-label", doc.title||"Archive video");
@@ -705,7 +722,7 @@ function useEmbed(doc){
   stage.innerHTML = "";
   var f = document.createElement("iframe");
   f.src = "https://archive.org/embed/"+encodeURIComponent(doc.identifier)+"?autoplay=1";
-  f.allow = "autoplay; fullscreen";
+  f.allow = "autoplay; fullscreen; picture-in-picture";
   f.allowFullscreen = true;
   f.title = doc.title||"Archive video";
   stage.appendChild(f);
@@ -1115,6 +1132,7 @@ setInterval(function(){
 $("tvYear").addEventListener("change", function(){ setYearFilter(this.value); });
 $("tuneInBtn").addEventListener("click", function(){ tuneChannel(Math.floor(Math.random()*CHANNELS.length)); });
 $("playPauseBtn").addEventListener("click", togglePlayPause);
+$("pipBtn").addEventListener("click", enterPip);
 $("chUp").addEventListener("click", function(){ tuneChannel(state.channel<0?0:state.channel+1); });
 $("chDown").addEventListener("click", function(){ tuneChannel(state.channel<0?CHANNELS.length-1:state.channel-1); });
 $("favBtn").addEventListener("click", function(){

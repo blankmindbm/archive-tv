@@ -1,8 +1,13 @@
 package com.archivetv.app
 
+import android.app.PictureInPictureParams
+import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
+import android.util.Rational
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -17,12 +22,62 @@ import androidx.appcompat.app.AppCompatActivity
  * and loaded in a WebView. All videos still stream live from
  * archive.org at play time, nothing is hosted or copied.
  * 13 channels, year chooser, directory, guide, and searchable library.
+ *
+ * Picture-in-Picture: the TV deck has a PiP button, and pressing Home
+ * while a video is playing auto-enters PiP. The page hides everything
+ * except the video while in PiP (body.pip, see archive-tv.html).
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
+    @Volatile
+    private var isVideoPlaying = false
+
+    inner class WebAppInterface {
+        @JavascriptInterface
+        fun enterPip() {
+            runOnUiThread { enterPipMode() }
+        }
+
+        @JavascriptInterface
+        fun setPlaying(playing: Boolean) {
+            isVideoPlaying = playing
+        }
+    }
+
+    private fun enterPipMode() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        // If a fullscreen custom view is showing, hide it first so the
+        // normal <video> element is the one that keeps playing in PiP.
+        if (customView != null) {
+            webView.webChromeClient?.onHideCustomView()
+        }
+        val params = PictureInPictureParams.Builder()
+            .setAspectRatio(Rational(16, 9))
+            .apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    setAutoEnterEnabled(true)
+                    setSeamlessResizeEnabled(true)
+                }
+            }
+            .build()
+        try {
+            enterPictureInPictureMode(params)
+        } catch (_: Exception) {
+            // PiP not available on this device / launcher, stay in-app.
+        }
+    }
+
+    private fun setPipUi(isPip: Boolean) {
+        if (::webView.isInitialized) {
+            webView.evaluateJavascript(
+                "document.body.classList.toggle('pip', $isPip);",
+                null
+            )
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +100,7 @@ class MainActivity : AppCompatActivity() {
                 allowContentAccess = true
                 mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             }
+            addJavascriptInterface(WebAppInterface(), "ArchiveTV")
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(
                     view: WebView?,
@@ -52,6 +108,41 @@ class MainActivity : AppCompatActivity() {
                 ): Boolean {
                     // Keep archive.org links inside the app.
                     return false
+                }
+
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    // Track whether the stage <video> is playing, so Home
+                    // only auto-enters PiP while something is actually on.
+                    // Videos are created dynamically, so watch #stage.
+                    view?.evaluateJavascript(
+                        """
+                        (function(){
+                          if (window.__pipWatch) return;
+                          window.__pipWatch = true;
+                          function watch(v){
+                            if (!v || v.__pipWatched) return;
+                            v.__pipWatched = true;
+                            var report = function(){ if (window.ArchiveTV) window.ArchiveTV.setPlaying(!v.paused && !v.ended); };
+                            v.addEventListener('play', report);
+                            v.addEventListener('pause', report);
+                            v.addEventListener('ended', report);
+                            report();
+                          }
+                          function scan(){
+                            var s = document.getElementById('stage');
+                            if (!s) return;
+                            var v = s.querySelector('video');
+                            if (v) watch(v);
+                          }
+                          scan();
+                          var obs = new MutationObserver(scan);
+                          var stage = document.getElementById('stage');
+                          if (stage) obs.observe(stage, {childList: true, subtree: true});
+                        })();
+                        """.trimIndent(),
+                        null
+                    )
                 }
             }
             webChromeClient = object : WebChromeClient() {
@@ -85,6 +176,24 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(webView)
         webView.loadUrl("file:///android_asset/archive-tv.html")
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // Pressing Home while a video is playing drops into PiP.
+        // Auto-enter is also enabled on Android 12+, this is the
+        // fallback for older versions and for the manual PiP button.
+        if (isVideoPlaying) {
+            enterPipMode()
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        setPipUi(isInPictureInPictureMode)
     }
 
     @Deprecated("Back handling for older Android versions")
