@@ -3,10 +3,8 @@ name: Release APK
 # Publish the debug APK as a GitHub Release, no manual download needed.
 # Add this file on github.com, then run it from the Actions tab.
 # It builds the APK and attaches app-debug.apk to release v1.6.
-
 on:
   workflow_dispatch:
-
 jobs:
   release:
     runs-on: ubuntu-latest
