@@ -1,10 +1,12 @@
 name: Release APK
 
-# Publish the debug APK as a GitHub Release, no manual download needed.
+# Publish the release APK as a GitHub Release, no manual download needed.
 # Add this file on github.com, then run it from the Actions tab.
-# It builds the APK and attaches app-debug.apk to release v1.8.
+# It builds the APK and attaches it as Archive-TV-v1.9.apk to release v1.9.
+
 on:
   workflow_dispatch:
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -12,28 +14,43 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
+
       - name: Install Android platform 34 and build tools
         run: |
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
           yes | "$SDKMANAGER" --licenses || true
           "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
       - name: Set up Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.7"
-      - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
-      - name: Rename APK to Archive-TV-v1.8.apk
-        run: cp app/build/outputs/apk/debug/app-debug.apk Archive-TV-v1.8.apk
-      - name: Create release v1.8 with APK
+
+      - name: Decode release keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+          echo "KEYSTORE_PATH=$PWD/release.keystore" >> $GITHUB_ENV
+
+      - name: Build release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: gradle assembleRelease --stacktrace
+
+      - name: Rename APK to Archive-TV-v1.9.apk
+        run: cp app/build/outputs/apk/release/app-release.apk Archive-TV-v1.9.apk
+
+      - name: Create release v1.9 with APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.8
-          name: Archive TV v1.8
-          body: Archive TV v1.8, package com.archivetv.app, with in-app update checks and a tighter Kids channel.
-          files: Archive-TV-v1.8.apk
+          tag_name: v1.9
+          name: Archive TV v1.9
+          body: Archive TV v1.9, package com.archivetv.app, with release signing so updates install over the old app.
+          files: Archive-TV-v1.9.apk
