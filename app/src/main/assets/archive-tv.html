@@ -486,7 +486,7 @@
 "use strict";
 var SLOT = 1800; /* 30-minute programming blocks, aligned to the epoch */
 var API = "https://archive.org/advancedsearch.php";
-var FIELDS = ["identifier","title","year","creator","description","downloads","runtime","subject"];
+var FIELDS = ["identifier","title","year","creator","description","downloads","runtime","subject","language"];
 
 var CHANNELS = [
   { num:"02", name:"Cartoons", desc:"Classic cartoons and animation, from Popeye to public-domain oddities.", q:"(collection:classic_cartoons OR collection:animationandcartoons) AND mediatype:movies AND year:[* TO 2026]", yt:"classic cartoons popeye" },
@@ -575,6 +575,25 @@ function channelQuery(idx){
 }
 /* Family-friendly filter: drop titles/descriptions that look adult, even if Archive.org did not tag them. */
 var ADULT_WORDS = /\b(hentai|porn|pornography|xxx|nsfw|erotic|erotica|nudity|nude|naked|uncensored|striptease|sexually explicit)\b|\[adult\]/i;
+/* English only: drop a title only when Archive.org explicitly tags it
+   as another language, or its title is in a non-Latin script. Most items
+   have no language tag at all, so those are kept, a strict language:eng
+   query would gut the channels (Music 266k to 37k, Cartoons 16k to 876). */
+function isEnglishDoc(d){
+  if(!d) return true;
+  var langs = d.language;
+  if(langs){
+    var arr = Array.isArray(langs) ? langs : [langs];
+    for(var i=0;i<arr.length;i++){
+      var l = String(arr[i]).toLowerCase();
+      if(l==="eng" || l==="en" || l==="english" || l.indexOf("english")===0) return true;
+    }
+    return false;
+  }
+  var title = String(d.title||"");
+  if(/[\u0400-\u04FF\u0600-\u06FF\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(title)) return false;
+  return true;
+}
 function isAdultDoc(d){
   if(!d) return false;
   var hay = ((d.title||"") + " " + (d.description||"")).toLowerCase();
@@ -632,11 +651,11 @@ function loadPlaylist(idx){
   }
   var ch = CHANNELS[idx];
   return iaSearch(channelQuery(idx), { rows:48, sort:"downloads desc" }).then(function(res){
-    var docs = (res.docs||[]).filter(function(d){ return !isAdultDoc(d); });
+    var docs = (res.docs||[]).filter(function(d){ return !isAdultDoc(d) && isEnglishDoc(d); });
     var ytQ = ch.yt ? ch.yt + (state.yearFilter ? " " + state.yearFilter : "") : null;
     if(!ytQ) { var list0 = seededShuffle(docs, idx+7); state.playlists[idx] = list0; return list0; }
     return ytSearch(ytQ).then(function(ytDocs){
-      var all = docs.concat((ytDocs||[]).filter(function(d){ return !isAdultDoc(d); }));
+      var all = docs.concat((ytDocs||[]).filter(function(d){ return !isAdultDoc(d) && isEnglishDoc(d); }));
       var list = seededShuffle(all, idx+7);
       state.playlists[idx] = list;
       return list;
@@ -752,7 +771,7 @@ function setStageLoading(title){
    issued to us, the public web client key is used. It can break or be
    blocked, so a failure just falls back to Archive.org only. */
 function ytSearch(query){
-  var payload = { context:{ client:{ clientName:"WEB", clientVersion:"2.20240111.09.00" } }, query: query };
+  var payload = { context:{ client:{ clientName:"WEB", clientVersion:"2.20240111.09.00", hl:"en", gl:"US" } }, query: query };
   return fetch("https://www.youtube.com/youtubei/v1/search?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8", {
     method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload)
   }).then(function(r){ if(!r.ok) throw new Error("yt "+r.status); return r.json(); }).then(function(j){
@@ -795,7 +814,7 @@ function playDoc(doc, opts){
   state.mode = opts.channel!=null ? "channel" : "library";
   if(opts.channel!=null){ state.channel = opts.channel; }
   if(opts.pos!=null){ state.pos = opts.pos; }
-  if(isAdultDoc(doc) && opts.channel!=null){
+  if((isAdultDoc(doc) || !isEnglishDoc(doc)) && opts.channel!=null){
     var l3 = state.playlists[opts.channel]||[];
     if(l3.length){ var nx3 = ((opts.pos||0)+1)%l3.length; playDoc(l3[nx3], { channel:opts.channel, pos:nx3, seek:0 }); return; }
   }
